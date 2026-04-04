@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Virtual API UI</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f7f8fb; }
+    header { background: #0d47a1; color: white; padding: 20px; text-align: center; }
+    main { max-width: 1000px; margin: 20px auto; padding: 20px; }
+    section { background: white; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); margin-bottom: 20px; padding: 20px; }
+    h2 { margin-top: 0; }
+    label { display: block; margin: 15px 0 6px; font-weight: 600; }
+    input, textarea, button { width: 100%; box-sizing: border-box; border: 1px solid #ccd6dd; border-radius: 5px; padding: 10px; }
+    textarea { min-height: 120px; font-family: monospace; }
+    button { background: #0d47a1; color: white; border: none; cursor: pointer; margin-top: 10px; }
+    button:hover { background: #0b3b87; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .full-width { grid-column: 1 / -1; }
+    .output { white-space: pre-wrap; background: #f4f6f9; padding: 12px; border-radius: 5px; border: 1px solid #d7dde4; min-height: 80px; }
+    .status { margin-top: 10px; font-weight: 600; }
+    @media (max-width: 720px) { .row { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Virtual API Builder</h1>
+    <p>Create, retrieve, update, and test virtual APIs from one UI.</p>
+  </header>
+  <main>
+    <section>
+      <h2>Add Virtual API</h2>
+      <form id="add-form">
+        <div class="row">
+          <div>
+            <label for="add-api">API Path</label>
+            <input id="add-api" placeholder="/my/api/path" required />
+          </div>
+          <div>
+            <label for="add-method">Method</label>
+            <select id="add-method">
+              <option>GET</option>
+              <option>POST</option>
+              <option>PUT</option>
+              <option>DELETE</option>
+              <option>PATCH</option>
+              <option>OPTIONS</option>
+              <option>HEAD</option>
+            </select>
+          </div>
+          <div>
+            <label for="add-delay">Delay (seconds)</label>
+            <input id="add-delay" type="number" min="0" value="0" />
+          </div>
+          <div class="full-width">
+            <label for="add-request-payload">Request Payload (JSON)</label>
+            <textarea id="add-request-payload">{}</textarea>
+          </div>
+          <div class="full-width">
+            <label for="add-request-header">Request Header (JSON)</label>
+            <textarea id="add-request-header">{}</textarea>
+          </div>
+          <div class="full-width">
+            <label for="add-response-payload">Response Payload (JSON)</label>
+            <textarea id="add-response-payload">{}</textarea>
+          </div>
+          <div class="full-width">
+            <label for="add-response-header">Response Header (JSON)</label>
+            <textarea id="add-response-header">{}</textarea>
+          </div>
+        </div>
+        <button type="submit">Add Virtual API</button>
+        <div id="add-status" class="status"></div>
+      </form>
+    </section>
+
+    <section>
+      <h2>Retrieve / Update API</h2>
+      <div class="row">
+        <div>
+          <label for="manage-api">API Path</label>
+          <input id="manage-api" placeholder="/my/api/path" />
+        </div>
+        <div>
+          <label for="manage-method">Method</label>
+          <select id="manage-method">
+            <option>GET</option>
+            <option>POST</option>
+            <option>PUT</option>
+            <option>DELETE</option>
+            <option>PATCH</option>
+            <option>OPTIONS</option>
+            <option>HEAD</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>&nbsp;</label>
+          <button id="load-api" type="button">Load API</button>
+        </div>
+      </div>
+      <div class="row">
+        <div class="full-width">
+          <label for="manage-request-payload">Request Payload (JSON)</label>
+          <textarea id="manage-request-payload"></textarea>
+        </div>
+        <div class="full-width">
+          <label for="manage-request-header">Request Header (JSON)</label>
+          <textarea id="manage-request-header"></textarea>
+        </div>
+        <div class="full-width">
+          <label for="manage-response-payload">Response Payload (JSON)</label>
+          <textarea id="manage-response-payload"></textarea>
+        </div>
+        <div class="full-width">
+          <label for="manage-response-header">Response Header (JSON)</label>
+          <textarea id="manage-response-header"></textarea>
+        </div>
+        <div class="full-width">
+          <label for="manage-delay">Delay (seconds)</label>
+          <input id="manage-delay" type="number" min="0" />
+        </div>
+      </div>
+      <button id="update-api" type="button">Update API</button>
+      <div id="manage-status" class="status"></div>
+    </section>
+
+    <section>
+      <h2>Test Virtual API</h2>
+      <div class="row">
+        <div>
+          <label for="test-api">API Path</label>
+          <input id="test-api" placeholder="/my/api/path" />
+        </div>
+        <div>
+          <label for="test-method">Method</label>
+          <select id="test-method">
+            <option>GET</option>
+            <option>POST</option>
+            <option>PUT</option>
+            <option>DELETE</option>
+            <option>PATCH</option>
+            <option>OPTIONS</option>
+            <option>HEAD</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>&nbsp;</label>
+          <button id="test-api-button" type="button">Send Request</button>
+        </div>
+      </div>
+      <div class="full-width">
+        <label for="test-request-payload">Request Payload (JSON)</label>
+        <textarea id="test-request-payload">{}</textarea>
+      </div>
+      <div class="row">
+        <div class="full-width">
+          <label>Response Status</label>
+          <div id="test-status" class="output"></div>
+        </div>
+        <div class="full-width">
+          <label>Response Headers</label>
+          <div id="test-headers" class="output"></div>
+        </div>
+        <div class="full-width">
+          <label>Response Payload</label>
+          <div id="test-response" class="output"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    function parseJson(text) {
+      try {
+        return text.trim() === '' ? {} : JSON.parse(text);
+      } catch (error) {
+        throw new Error('Invalid JSON: ' + error.message);
+      }
+    }
+
+    function prettyJson(value) {
+      return JSON.stringify(value, null, 2);
+    }
+
+    async function addVirtualApi(event) {
+      event.preventDefault();
+      const status = document.getElementById('add-status');
+      status.textContent = '';
+
+      try {
+        const api = document.getElementById('add-api').value.trim();
+        const method = document.getElementById('add-method').value.trim().toUpperCase();
+        const request_payload = parseJson(document.getElementById('add-request-payload').value);
+        const request_header = parseJson(document.getElementById('add-request-header').value);
+        const response_payload = parseJson(document.getElementById('add-response-payload').value);
+        const response_header = parseJson(document.getElementById('add-response-header').value);
+        const delay = Number(document.getElementById('add-delay').value || 0);
+
+        const response = await fetch('/add_virtual_apis', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ api, method, request_payload, request_header, response_payload, response_header, delay }),
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || data.message || 'Unable to add API');
+        status.textContent = `API added: ${data.api}`;
+      } catch (error) {
+        status.textContent = error.message;
+      }
+    }
+
+    async function loadApi() {
+      const status = document.getElementById('manage-status');
+      status.textContent = '';
+      try {
+        const api = document.getElementById('manage-api').value.trim();
+        const method = document.getElementById('manage-method').value.trim().toUpperCase();
+        if (!api) throw new Error('API path is required');
+        const response = await fetch(`/virtual_apis?api=${encodeURIComponent(api)}&method=${encodeURIComponent(method)}`);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || 'API not found');
+
+        document.getElementById('manage-request-payload').value = prettyJson(data.request_payload || {});
+        document.getElementById('manage-request-header').value = prettyJson(data.request_header || {});
+        document.getElementById('manage-response-payload').value = prettyJson(data.response_payload || {});
+        document.getElementById('manage-response-header').value = prettyJson(data.response_header || {});
+        document.getElementById('manage-delay').value = data.delay ?? 0;
+        document.getElementById('manage-method').value = data.method || method;
+        status.textContent = `Loaded API ${method} ${api}`;
+      } catch (error) {
+        status.textContent = error.message;
+      }
+    }
+
+    async function updateApi() {
+      const status = document.getElementById('manage-status');
+      status.textContent = '';
+      try {
+        const api = document.getElementById('manage-api').value.trim();
+        const method = document.getElementById('manage-method').value.trim().toUpperCase();
+        if (!api) throw new Error('API path is required');
+
+        const updatePayload = {
+          method,
+          request_payload: parseJson(document.getElementById('manage-request-payload').value),
+          request_header: parseJson(document.getElementById('manage-request-header').value),
+          response_payload: parseJson(document.getElementById('manage-response-payload').value),
+          response_header: parseJson(document.getElementById('manage-response-header').value),
+          delay: Number(document.getElementById('manage-delay').value || 0),
+        };
+
+        const response = await fetch(`/virtual_apis?api=${encodeURIComponent(api)}&method=${encodeURIComponent(method)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatePayload),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || 'Unable to update API');
+        status.textContent = data.message;
+      } catch (error) {
+        status.textContent = error.message;
+      }
+    }
+
+    async function testApi() {
+      const statusEl = document.getElementById('test-status');
+      const headersEl = document.getElementById('test-headers');
+      const responseEl = document.getElementById('test-response');
+      statusEl.textContent = '';
+      headersEl.textContent = '';
+      responseEl.textContent = '';
+
+      try {
+        const api = document.getElementById('test-api').value.trim();
+        const method = document.getElementById('test-method').value.trim().toUpperCase();
+        if (!api) throw new Error('API path is required for testing');
+
+        const requestPayload = parseJson(document.getElementById('test-request-payload').value);
+        const fetchOptions = {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+        };
+        if (method !== 'GET' && method !== 'HEAD') {
+          fetchOptions.body = JSON.stringify(requestPayload);
+        }
+
+        const response = await fetch(api, fetchOptions);
+        const responseBody = await response.json();
+
+        statusEl.textContent = `${response.status} ${response.statusText}`;
+        headersEl.textContent = prettyJson(Object.fromEntries(response.headers.entries()));
+        responseEl.textContent = prettyJson(responseBody);
+      } catch (error) {
+        statusEl.textContent = error.message;
+      }
+    }
+
+    document.getElementById('add-form').addEventListener('submit', addVirtualApi);
+    document.getElementById('load-api').addEventListener('click', loadApi);
+    document.getElementById('update-api').addEventListener('click', updateApi);
+    document.getElementById('test-api-button').addEventListener('click', testApi);
+  </script>
+</body>
+</html>
