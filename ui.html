@@ -259,6 +259,13 @@
               </select>
             </div>
             <div>
+              <label for="add-storage">Storage</label>
+              <select id="add-storage">
+                <option value="local">Local JSON</option>
+                <option value="db">Database</option>
+              </select>
+            </div>
+            <div>
               <label for="add-delay">Delay (seconds)</label>
               <input id="add-delay" type="number" min="0" value="0" />
             </div>
@@ -289,6 +296,21 @@
         <p class="helper">Load an existing endpoint, revise payload/headers, and save your updates.</p>
         <div class="row">
           <div>
+            <label for="manage-api-select">Saved Virtual APIs</label>
+            <select id="manage-api-select">
+              <option value="">-- Select saved API --</option>
+            </select>
+          </div>
+          <div>
+            <label for="manage-storage">Storage</label>
+            <select id="manage-storage">
+              <option value="local">Local JSON</option>
+              <option value="db">Database</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div>
             <label for="manage-api">API Path</label>
             <input id="manage-api" placeholder="/my/api/path" />
           </div>
@@ -309,6 +331,10 @@
           <div>
             <label>&nbsp;</label>
             <button id="load-api" type="button">Load API</button>
+          </div>
+          <div>
+            <label>&nbsp;</label>
+            <button id="refresh-manage-list" type="button">Refresh List</button>
           </div>
         </div>
         <div class="row">
@@ -342,6 +368,21 @@
         <p class="helper">Send test requests to a configured virtual endpoint and inspect response details.</p>
         <div class="row">
           <div>
+            <label for="test-api-select">Saved Virtual APIs</label>
+            <select id="test-api-select">
+              <option value="">-- Select saved API --</option>
+            </select>
+          </div>
+          <div>
+            <label for="test-storage">Storage</label>
+            <select id="test-storage">
+              <option value="local">Local JSON</option>
+              <option value="db">Database</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div>
             <label for="test-api">API Path</label>
             <input id="test-api" placeholder="/my/api/path" />
           </div>
@@ -362,6 +403,10 @@
           <div>
             <label>&nbsp;</label>
             <button id="test-api-button" type="button">Send Request</button>
+          </div>
+          <div>
+            <label>&nbsp;</label>
+            <button id="refresh-test-list" type="button">Refresh List</button>
           </div>
         </div>
         <div class="full-width">
@@ -430,6 +475,54 @@
       }
     }
 
+    function buildApiOption(item) {
+      const option = document.createElement('option');
+      option.value = item.api;
+      option.dataset.method = item.method;
+      option.dataset.storage = item.storage || 'local';
+      option.textContent = `${item.api} [${item.method}] (${item.storage})`;
+      return option;
+    }
+
+    async function fetchSavedApis(storage) {
+      const response = await fetch(`/virtual_apis/list?storage=${encodeURIComponent(storage)}`);
+      if (!response.ok) {
+        throw new Error('Unable to load saved APIs');
+      }
+      return await response.json();
+    }
+
+    function populateSavedApiSelect(selectId, apis) {
+      const select = document.getElementById(selectId);
+      select.innerHTML = '<option value="">-- Select saved API --</option>';
+      apis.forEach((item) => select.appendChild(buildApiOption(item)));
+    }
+
+    async function refreshSavedApiLists() {
+      try {
+        const manageStorage = document.getElementById('manage-storage').value;
+        const testStorage = document.getElementById('test-storage').value;
+        const [manageApis, testApis] = await Promise.all([
+          fetchSavedApis(manageStorage),
+          fetchSavedApis(testStorage),
+        ]);
+        populateSavedApiSelect('manage-api-select', manageApis);
+        populateSavedApiSelect('test-api-select', testApis);
+      } catch (error) {
+        console.warn('Could not refresh saved API list', error);
+      }
+    }
+
+    function applySavedApiSelection(selectId, apiFieldId, methodFieldId) {
+      const select = document.getElementById(selectId);
+      const option = select.selectedOptions[0];
+      if (!option || !option.value) {
+        return;
+      }
+      document.getElementById(apiFieldId).value = option.value;
+      document.getElementById(methodFieldId).value = option.dataset.method;
+    }
+
     async function addVirtualApi(event) {
       event.preventDefault();
       const status = document.getElementById('add-status');
@@ -438,13 +531,14 @@
       try {
         const api = document.getElementById('add-api').value.trim();
         const method = document.getElementById('add-method').value.trim().toUpperCase();
+        const storage = document.getElementById('add-storage').value;
         const request_payload = parseJson(document.getElementById('add-request-payload').value);
         const request_header = parseJson(document.getElementById('add-request-header').value);
         const response_payload = parseJson(document.getElementById('add-response-payload').value);
         const response_header = parseJson(document.getElementById('add-response-header').value);
         const delay = Number(document.getElementById('add-delay').value || 0);
 
-        const response = await fetch('/add_virtual_apis', {
+        const response = await fetch(`/add_virtual_apis?storage=${encodeURIComponent(storage)}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ api, method, request_payload, request_header, response_payload, response_header, delay }),
@@ -453,6 +547,7 @@
         const data = await response.json();
         if (!response.ok) throw new Error(data.detail || data.message || 'Unable to add API');
         status.textContent = `API added: ${data.api}`;
+        await refreshSavedApiLists();
       } catch (error) {
         status.textContent = error.message;
       }
@@ -464,8 +559,12 @@
       try {
         const api = document.getElementById('manage-api').value.trim();
         const method = document.getElementById('manage-method').value.trim().toUpperCase();
+        const storage = document.getElementById('manage-storage').value;
         if (!api) throw new Error('API path is required');
-        const response = await fetch(`/virtual_apis?api=${encodeURIComponent(api)}&method=${encodeURIComponent(method)}`);
+
+        const response = await fetch(
+          `/virtual_apis?api=${encodeURIComponent(api)}&method=${encodeURIComponent(method)}&storage=${encodeURIComponent(storage)}`,
+        );
         const data = await response.json();
         if (!response.ok) throw new Error(data.detail || 'API not found');
 
@@ -487,6 +586,7 @@
       try {
         const api = document.getElementById('manage-api').value.trim();
         const method = document.getElementById('manage-method').value.trim().toUpperCase();
+        const storage = document.getElementById('manage-storage').value;
         if (!api) throw new Error('API path is required');
 
         const updatePayload = {
@@ -498,14 +598,18 @@
           delay: Number(document.getElementById('manage-delay').value || 0),
         };
 
-        const response = await fetch(`/virtual_apis?api=${encodeURIComponent(api)}&method=${encodeURIComponent(method)}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(updatePayload),
-        });
+        const response = await fetch(
+          `/virtual_apis?api=${encodeURIComponent(api)}&method=${encodeURIComponent(method)}&storage=${encodeURIComponent(storage)}`,
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updatePayload),
+          },
+        );
         const data = await response.json();
         if (!response.ok) throw new Error(data.detail || 'Unable to update API');
         status.textContent = data.message;
+        await refreshSavedApiLists();
       } catch (error) {
         status.textContent = error.message;
       }
@@ -522,19 +626,20 @@
       try {
         const api = document.getElementById('test-api').value.trim();
         const method = document.getElementById('test-method').value.trim().toUpperCase();
+        const storage = document.getElementById('test-storage').value;
         if (!api) throw new Error('API path is required for testing');
 
-        const requestPayload = parseJson(document.getElementById('test-request-payload').value);
-        const fetchOptions = {
-          method,
+        const request_payload = parseJson(document.getElementById('test-request-payload').value);
+        const response = await fetch('/test_virtual_api', {
+          method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-        };
-        if (method !== 'GET' && method !== 'HEAD') {
-          fetchOptions.body = JSON.stringify(requestPayload);
-        }
+          body: JSON.stringify({ api, method, storage, request_payload }),
+        });
 
-        const response = await fetch(api, fetchOptions);
         const responseBody = await response.json();
+        if (!response.ok) {
+          throw new Error(responseBody.detail || 'Unable to test API');
+        }
 
         statusEl.textContent = `${response.status} ${response.statusText}`;
         headersEl.textContent = prettyJson(Object.fromEntries(response.headers.entries()));
@@ -552,6 +657,14 @@
     document.getElementById('load-api').addEventListener('click', loadApi);
     document.getElementById('update-api').addEventListener('click', updateApi);
     document.getElementById('test-api-button').addEventListener('click', testApi);
+    document.getElementById('manage-api-select').addEventListener('change', () => applySavedApiSelection('manage-api-select', 'manage-api', 'manage-method'));
+    document.getElementById('test-api-select').addEventListener('change', () => applySavedApiSelection('test-api-select', 'test-api', 'test-method'));
+    document.getElementById('refresh-manage-list').addEventListener('click', refreshSavedApiLists);
+    document.getElementById('refresh-test-list').addEventListener('click', refreshSavedApiLists);
+    document.getElementById('manage-storage').addEventListener('change', refreshSavedApiLists);
+    document.getElementById('test-storage').addEventListener('change', refreshSavedApiLists);
+
+    window.addEventListener('DOMContentLoaded', refreshSavedApiLists);
   </script>
 </body>
 </html>
