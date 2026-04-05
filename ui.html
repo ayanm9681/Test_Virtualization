@@ -5,40 +5,296 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Virtual API UI</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f7f8fb; }
-    header { background: #0d47a1; color: white; padding: 20px; text-align: center; }
-    main { max-width: 1000px; margin: 20px auto; padding: 20px; }
-    section { background: white; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); margin-bottom: 20px; padding: 20px; }
-    h2 { margin-top: 0; }
-    label { display: block; margin: 15px 0 6px; font-weight: 600; }
-    input, textarea, button { width: 100%; box-sizing: border-box; border: 1px solid #ccd6dd; border-radius: 5px; padding: 10px; }
-    textarea { min-height: 120px; font-family: monospace; }
-    button { background: #0d47a1; color: white; border: none; cursor: pointer; margin-top: 10px; }
-    button:hover { background: #0b3b87; }
-    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    :root {
+      --bg: #eef2f8;
+      --surface: #ffffff;
+      --surface-alt: #f7f9fc;
+      --text: #1f2937;
+      --muted: #667085;
+      --primary: #1f4ed8;
+      --primary-dark: #183db0;
+      --border: #d7dee8;
+      --shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Inter", "Segoe UI", Roboto, Arial, sans-serif;
+      background: radial-gradient(circle at top left, #f9fbff 0%, var(--bg) 45%, #e8edf7 100%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      background: linear-gradient(180deg, #0f1f4a 0%, #142b64 100%);
+      color: #dbe7ff;
+      padding: 24px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+      box-shadow: 4px 0 24px rgba(2, 8, 23, 0.25);
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 1.25rem;
+      color: #ffffff;
+      letter-spacing: 0.2px;
+    }
+
+    .brand p {
+      margin: 8px 0 0;
+      color: #b7c9f5;
+      font-size: 0.92rem;
+      line-height: 1.4;
+    }
+
+    .menu {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .menu button {
+      text-align: left;
+      border: 1px solid transparent;
+      background: rgba(255, 255, 255, 0.08);
+      color: #e8f0ff;
+      border-radius: 10px;
+      padding: 12px 14px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s ease;
+      width: 100%;
+    }
+
+    .menu button:hover {
+      background: rgba(255, 255, 255, 0.16);
+      transform: translateY(-1px);
+    }
+
+    .menu button.active {
+      background: #ffffff;
+      color: #0f1f4a;
+      border-color: #c7d6ff;
+      box-shadow: 0 6px 20px rgba(255, 255, 255, 0.25);
+    }
+
+    .workspace {
+      padding: 28px;
+    }
+
+    .page-header {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: var(--shadow);
+      margin-bottom: 20px;
+    }
+
+    .page-header h2 {
+      margin: 0;
+      font-size: 1.4rem;
+    }
+
+    .page-header p {
+      margin: 8px 0 0;
+      color: var(--muted);
+    }
+
+    section {
+      display: none;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 24px;
+    }
+
+    section.active {
+      display: block;
+    }
+
+    h3 {
+      margin-top: 0;
+      font-size: 1.15rem;
+    }
+
+    p.helper {
+      margin-top: -4px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    label {
+      display: block;
+      margin: 14px 0 6px;
+      font-weight: 600;
+      font-size: 0.94rem;
+    }
+
+    input, select, textarea, button {
+      width: 100%;
+      border: 1px solid #cfd8e3;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font: inherit;
+      background: #ffffff;
+    }
+
+    textarea {
+      min-height: 110px;
+      font-family: "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+      font-size: 0.9rem;
+      line-height: 1.45;
+    }
+
+    button[type="submit"],
+    #load-api,
+    #update-api,
+    #test-api-button {
+      background: var(--primary);
+      color: #ffffff;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 14px;
+    }
+
+    button[type="submit"]:hover,
+    #load-api:hover,
+    #update-api:hover,
+    #test-api-button:hover {
+      background: var(--primary-dark);
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
     .full-width { grid-column: 1 / -1; }
-    .output { white-space: pre-wrap; background: #f4f6f9; padding: 12px; border-radius: 5px; border: 1px solid #d7dde4; min-height: 80px; }
-    .status { margin-top: 10px; font-weight: 600; }
-    @media (max-width: 720px) { .row { grid-template-columns: 1fr; } }
+
+    .output {
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      min-height: 84px;
+      padding: 12px;
+      font-family: "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+      font-size: 0.89rem;
+    }
+
+    .status {
+      margin-top: 10px;
+      font-weight: 600;
+      color: #0f5132;
+    }
+
+    @media (max-width: 960px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { padding: 18px; gap: 16px; }
+      .menu { flex-direction: row; flex-wrap: wrap; }
+      .menu button { width: auto; }
+      .workspace { padding: 18px; }
+    }
+
+    @media (max-width: 680px) {
+      .row { grid-template-columns: 1fr; }
+      .menu button { width: 100%; }
+    }
   </style>
 </head>
 <body>
-  <header>
-    <h1>Virtual API Builder</h1>
-    <p>Create, retrieve, update, and test virtual APIs from one UI.</p>
-  </header>
-  <main>
-    <section>
-      <h2>Add Virtual API</h2>
-      <form id="add-form">
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">
+        <h1>Virtual API Builder</h1>
+        <p>Manage API mocks with a clean, professional workflow.</p>
+      </div>
+      <nav class="menu" aria-label="Functionalities">
+        <button type="button" class="menu-item active" data-target="add-section">Add Virtual API</button>
+        <button type="button" class="menu-item" data-target="manage-section">Retrieve / Update API</button>
+        <button type="button" class="menu-item" data-target="test-section">Test Virtual API</button>
+      </nav>
+    </aside>
+
+    <main class="workspace">
+      <header class="page-header">
+        <h2 id="section-title">Add Virtual API</h2>
+        <p id="section-description">Define a new endpoint, request filters, and mock response details.</p>
+      </header>
+
+      <section id="add-section" class="active">
+        <h3>Add Virtual API</h3>
+        <p class="helper">Create and register a virtual endpoint with request/response payloads and headers.</p>
+        <form id="add-form">
+          <div class="row">
+            <div>
+              <label for="add-api">API Path</label>
+              <input id="add-api" placeholder="/my/api/path" required />
+            </div>
+            <div>
+              <label for="add-method">Method</label>
+              <select id="add-method">
+                <option>GET</option>
+                <option>POST</option>
+                <option>PUT</option>
+                <option>DELETE</option>
+                <option>PATCH</option>
+                <option>OPTIONS</option>
+                <option>HEAD</option>
+              </select>
+            </div>
+            <div>
+              <label for="add-delay">Delay (seconds)</label>
+              <input id="add-delay" type="number" min="0" value="0" />
+            </div>
+            <div class="full-width">
+              <label for="add-request-payload">Request Payload (JSON)</label>
+              <textarea id="add-request-payload">{}</textarea>
+            </div>
+            <div class="full-width">
+              <label for="add-request-header">Request Header (JSON)</label>
+              <textarea id="add-request-header">{}</textarea>
+            </div>
+            <div class="full-width">
+              <label for="add-response-payload">Response Payload (JSON)</label>
+              <textarea id="add-response-payload">{}</textarea>
+            </div>
+            <div class="full-width">
+              <label for="add-response-header">Response Header (JSON)</label>
+              <textarea id="add-response-header">{}</textarea>
+            </div>
+          </div>
+          <button type="submit">Add Virtual API</button>
+          <div id="add-status" class="status"></div>
+        </form>
+      </section>
+
+      <section id="manage-section">
+        <h3>Retrieve / Update API</h3>
+        <p class="helper">Load an existing endpoint, revise payload/headers, and save your updates.</p>
         <div class="row">
           <div>
-            <label for="add-api">API Path</label>
-            <input id="add-api" placeholder="/my/api/path" required />
+            <label for="manage-api">API Path</label>
+            <input id="manage-api" placeholder="/my/api/path" />
           </div>
           <div>
-            <label for="add-method">Method</label>
-            <select id="add-method">
+            <label for="manage-method">Method</label>
+            <select id="manage-method">
               <option>GET</option>
               <option>POST</option>
               <option>PUT</option>
@@ -48,130 +304,87 @@
               <option>HEAD</option>
             </select>
           </div>
+        </div>
+        <div class="row">
           <div>
-            <label for="add-delay">Delay (seconds)</label>
-            <input id="add-delay" type="number" min="0" value="0" />
-          </div>
-          <div class="full-width">
-            <label for="add-request-payload">Request Payload (JSON)</label>
-            <textarea id="add-request-payload">{}</textarea>
-          </div>
-          <div class="full-width">
-            <label for="add-request-header">Request Header (JSON)</label>
-            <textarea id="add-request-header">{}</textarea>
-          </div>
-          <div class="full-width">
-            <label for="add-response-payload">Response Payload (JSON)</label>
-            <textarea id="add-response-payload">{}</textarea>
-          </div>
-          <div class="full-width">
-            <label for="add-response-header">Response Header (JSON)</label>
-            <textarea id="add-response-header">{}</textarea>
+            <label>&nbsp;</label>
+            <button id="load-api" type="button">Load API</button>
           </div>
         </div>
-        <button type="submit">Add Virtual API</button>
-        <div id="add-status" class="status"></div>
-      </form>
-    </section>
+        <div class="row">
+          <div class="full-width">
+            <label for="manage-request-payload">Request Payload (JSON)</label>
+            <textarea id="manage-request-payload"></textarea>
+          </div>
+          <div class="full-width">
+            <label for="manage-request-header">Request Header (JSON)</label>
+            <textarea id="manage-request-header"></textarea>
+          </div>
+          <div class="full-width">
+            <label for="manage-response-payload">Response Payload (JSON)</label>
+            <textarea id="manage-response-payload"></textarea>
+          </div>
+          <div class="full-width">
+            <label for="manage-response-header">Response Header (JSON)</label>
+            <textarea id="manage-response-header"></textarea>
+          </div>
+          <div class="full-width">
+            <label for="manage-delay">Delay (seconds)</label>
+            <input id="manage-delay" type="number" min="0" />
+          </div>
+        </div>
+        <button id="update-api" type="button">Update API</button>
+        <div id="manage-status" class="status"></div>
+      </section>
 
-    <section>
-      <h2>Retrieve / Update API</h2>
-      <div class="row">
-        <div>
-          <label for="manage-api">API Path</label>
-          <input id="manage-api" placeholder="/my/api/path" />
+      <section id="test-section">
+        <h3>Test Virtual API</h3>
+        <p class="helper">Send test requests to a configured virtual endpoint and inspect response details.</p>
+        <div class="row">
+          <div>
+            <label for="test-api">API Path</label>
+            <input id="test-api" placeholder="/my/api/path" />
+          </div>
+          <div>
+            <label for="test-method">Method</label>
+            <select id="test-method">
+              <option>GET</option>
+              <option>POST</option>
+              <option>PUT</option>
+              <option>DELETE</option>
+              <option>PATCH</option>
+              <option>OPTIONS</option>
+              <option>HEAD</option>
+            </select>
+          </div>
         </div>
-        <div>
-          <label for="manage-method">Method</label>
-          <select id="manage-method">
-            <option>GET</option>
-            <option>POST</option>
-            <option>PUT</option>
-            <option>DELETE</option>
-            <option>PATCH</option>
-            <option>OPTIONS</option>
-            <option>HEAD</option>
-          </select>
-        </div>
-      </div>
-      <div class="row">
-        <div>
-          <label>&nbsp;</label>
-          <button id="load-api" type="button">Load API</button>
-        </div>
-      </div>
-      <div class="row">
-        <div class="full-width">
-          <label for="manage-request-payload">Request Payload (JSON)</label>
-          <textarea id="manage-request-payload"></textarea>
+        <div class="row">
+          <div>
+            <label>&nbsp;</label>
+            <button id="test-api-button" type="button">Send Request</button>
+          </div>
         </div>
         <div class="full-width">
-          <label for="manage-request-header">Request Header (JSON)</label>
-          <textarea id="manage-request-header"></textarea>
+          <label for="test-request-payload">Request Payload (JSON)</label>
+          <textarea id="test-request-payload">{}</textarea>
         </div>
-        <div class="full-width">
-          <label for="manage-response-payload">Response Payload (JSON)</label>
-          <textarea id="manage-response-payload"></textarea>
+        <div class="row">
+          <div class="full-width">
+            <label>Response Status</label>
+            <div id="test-status" class="output"></div>
+          </div>
+          <div class="full-width">
+            <label>Response Headers</label>
+            <div id="test-headers" class="output"></div>
+          </div>
+          <div class="full-width">
+            <label>Response Payload</label>
+            <div id="test-response" class="output"></div>
+          </div>
         </div>
-        <div class="full-width">
-          <label for="manage-response-header">Response Header (JSON)</label>
-          <textarea id="manage-response-header"></textarea>
-        </div>
-        <div class="full-width">
-          <label for="manage-delay">Delay (seconds)</label>
-          <input id="manage-delay" type="number" min="0" />
-        </div>
-      </div>
-      <button id="update-api" type="button">Update API</button>
-      <div id="manage-status" class="status"></div>
-    </section>
-
-    <section>
-      <h2>Test Virtual API</h2>
-      <div class="row">
-        <div>
-          <label for="test-api">API Path</label>
-          <input id="test-api" placeholder="/my/api/path" />
-        </div>
-        <div>
-          <label for="test-method">Method</label>
-          <select id="test-method">
-            <option>GET</option>
-            <option>POST</option>
-            <option>PUT</option>
-            <option>DELETE</option>
-            <option>PATCH</option>
-            <option>OPTIONS</option>
-            <option>HEAD</option>
-          </select>
-        </div>
-      </div>
-      <div class="row">
-        <div>
-          <label>&nbsp;</label>
-          <button id="test-api-button" type="button">Send Request</button>
-        </div>
-      </div>
-      <div class="full-width">
-        <label for="test-request-payload">Request Payload (JSON)</label>
-        <textarea id="test-request-payload">{}</textarea>
-      </div>
-      <div class="row">
-        <div class="full-width">
-          <label>Response Status</label>
-          <div id="test-status" class="output"></div>
-        </div>
-        <div class="full-width">
-          <label>Response Headers</label>
-          <div id="test-headers" class="output"></div>
-        </div>
-        <div class="full-width">
-          <label>Response Payload</label>
-          <div id="test-response" class="output"></div>
-        </div>
-      </div>
-    </section>
-  </main>
+      </section>
+    </main>
+  </div>
 
   <script>
     function parseJson(text) {
@@ -184,6 +397,37 @@
 
     function prettyJson(value) {
       return JSON.stringify(value, null, 2);
+    }
+
+    const sectionCopy = {
+      'add-section': {
+        title: 'Add Virtual API',
+        description: 'Define a new endpoint, request filters, and mock response details.',
+      },
+      'manage-section': {
+        title: 'Retrieve / Update API',
+        description: 'Load an existing API configuration, edit data, and save changes.',
+      },
+      'test-section': {
+        title: 'Test Virtual API',
+        description: 'Run requests against mock endpoints and inspect full response output.',
+      },
+    };
+
+    function activateSection(targetId) {
+      document.querySelectorAll('section').forEach((section) => {
+        section.classList.toggle('active', section.id === targetId);
+      });
+
+      document.querySelectorAll('.menu-item').forEach((button) => {
+        button.classList.toggle('active', button.dataset.target === targetId);
+      });
+
+      const copy = sectionCopy[targetId];
+      if (copy) {
+        document.getElementById('section-title').textContent = copy.title;
+        document.getElementById('section-description').textContent = copy.description;
+      }
     }
 
     async function addVirtualApi(event) {
@@ -299,6 +543,10 @@
         statusEl.textContent = error.message;
       }
     }
+
+    document.querySelectorAll('.menu-item').forEach((button) => {
+      button.addEventListener('click', () => activateSection(button.dataset.target));
+    });
 
     document.getElementById('add-form').addEventListener('submit', addVirtualApi);
     document.getElementById('load-api').addEventListener('click', loadApi);
