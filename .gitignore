@@ -1,0 +1,64 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.whl
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+.env
+
+# Byte-compiled / optimized files
+*.pyc
+
+# Distribution / packaging
+pip-wheel-metadata/
+*.spec
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Local storage data
+virtual_apis.json
+
+# Logs
+*.log
+logs/
+
+# Coverage / test artifacts
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+nosetests.xml
+coverage.xml
+*.cover
+
+# mypy / pyright type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyright/
+
+# Jupyter notebooks checkpoints
+.ipynb_checkpoints/
+
+# dotenv — never commit secrets
+# .env is intentionally ignored; copy .env.example to .env locally
