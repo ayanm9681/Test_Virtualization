@@ -3,668 +3,1617 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Virtual API UI</title>
+  <title>Virtual API Builder</title>
   <style>
+    /* ============================================================
+       Design tokens
+    ============================================================ */
     :root {
-      --bg: #eef2f8;
-      --surface: #ffffff;
-      --surface-alt: #f7f9fc;
-      --text: #1f2937;
-      --muted: #667085;
-      --primary: #1f4ed8;
-      --primary-dark: #183db0;
-      --border: #d7dee8;
-      --shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+      --sidebar-w: 252px;
+
+      /* Navy palette (sidebar) */
+      --navy-950: #060e1f;
+      --navy-900: #0a1628;
+      --navy-800: #0d1e40;
+      --navy-700: #132659;
+
+      /* Blue palette (primary actions) */
+      --blue-400: #60a5fa;
+      --blue-500: #3b82f6;
+      --blue-600: #2563eb;
+      --blue-700: #1d4ed8;
+
+      /* Semantic colours */
+      --green-500: #22c55e;
+      --green-600: #16a34a;
+      --green-700: #15803d;
+      --red-500:   #ef4444;
+      --red-600:   #dc2626;
+      --amber-500: #f59e0b;
+      --purple-500:#a855f7;
+      --teal-500:  #14b8a6;
+
+      /* Neutral palette */
+      --gray-50:  #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-300: #d1d5db;
+      --gray-400: #9ca3af;
+      --gray-500: #6b7280;
+      --gray-600: #4b5563;
+      --gray-700: #374151;
+      --gray-800: #1f2937;
+      --gray-900: #111827;
+
+      /* Surface */
+      --surface:  #ffffff;
+      --border:   #e5e7eb;
+
+      /* Shadows */
+      --shadow-xs: 0 1px 2px rgba(0,0,0,.06);
+      --shadow-sm: 0 1px 4px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.05);
+      --shadow-md: 0 4px 14px rgba(0,0,0,.08), 0 2px 6px rgba(0,0,0,.04);
+      --shadow-lg: 0 12px 32px rgba(0,0,0,.10), 0 4px 10px rgba(0,0,0,.06);
+
+      /* Radii */
+      --r-xs: 4px;
+      --r-sm: 6px;
+      --r-md: 10px;
+      --r-lg: 14px;
+
+      /* Code editor */
+      --code-bg:   #1e293b;
+      --code-text: #e2e8f0;
     }
 
-    * { box-sizing: border-box; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { font-size: 14px; -webkit-font-smoothing: antialiased; }
 
     body {
-      margin: 0;
-      font-family: "Inter", "Segoe UI", Roboto, Arial, sans-serif;
-      background: radial-gradient(circle at top left, #f9fbff 0%, var(--bg) 45%, #e8edf7 100%);
-      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", Roboto, sans-serif;
+      background: var(--gray-100);
+      color: var(--gray-900);
       min-height: 100vh;
+      display: flex;
+      line-height: 1.5;
     }
 
-    .layout {
-      display: grid;
-      grid-template-columns: 280px minmax(0, 1fr);
-      min-height: 100vh;
-    }
-
+    /* ============================================================
+       Sidebar
+    ============================================================ */
     .sidebar {
-      background: linear-gradient(180deg, #0f1f4a 0%, #142b64 100%);
-      color: #dbe7ff;
-      padding: 24px 18px;
+      width: var(--sidebar-w);
+      min-height: 100vh;
+      background: linear-gradient(165deg, var(--navy-950) 0%, var(--navy-900) 55%, var(--navy-800) 100%);
+      position: fixed;
+      inset: 0 auto 0 0;
       display: flex;
       flex-direction: column;
-      gap: 22px;
-      box-shadow: 4px 0 24px rgba(2, 8, 23, 0.25);
+      z-index: 100;
+      overflow-y: auto;
+      overflow-x: hidden;
+      border-right: 1px solid rgba(255,255,255,.04);
     }
 
-    .brand h1 {
-      margin: 0;
-      font-size: 1.25rem;
-      color: #ffffff;
-      letter-spacing: 0.2px;
+    .sidebar-brand {
+      padding: 22px 18px 18px;
+      border-bottom: 1px solid rgba(255,255,255,.06);
     }
 
-    .brand p {
-      margin: 8px 0 0;
-      color: #b7c9f5;
-      font-size: 0.92rem;
-      line-height: 1.4;
-    }
-
-    .menu {
+    .brand-row {
       display: flex;
-      flex-direction: column;
+      align-items: center;
       gap: 10px;
+      margin-bottom: 6px;
     }
 
-    .menu button {
-      text-align: left;
+    .brand-icon {
+      width: 34px;
+      height: 34px;
+      background: var(--blue-600);
+      border-radius: var(--r-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(37,99,235,.5);
+    }
+
+    .brand-icon svg {
+      width: 18px; height: 18px;
+      stroke: white; fill: none;
+      stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+    }
+
+    .brand-name {
+      font-size: .95rem;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -.15px;
+    }
+
+    .brand-sub {
+      font-size: .73rem;
+      color: rgba(255,255,255,.35);
+      line-height: 1.3;
+      padding-left: 44px;
+    }
+
+    /* Nav */
+    .sidebar-nav {
+      flex: 1;
+      padding: 14px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .nav-label {
+      font-size: .68rem;
+      font-weight: 700;
+      letter-spacing: .9px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,.25);
+      padding: 10px 8px 4px;
+      margin-top: 4px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 9px 10px;
+      border-radius: var(--r-md);
+      cursor: pointer;
       border: 1px solid transparent;
-      background: rgba(255, 255, 255, 0.08);
-      color: #e8f0ff;
-      border-radius: 10px;
-      padding: 12px 14px;
-      cursor: pointer;
-      font-weight: 600;
-      transition: all 0.2s ease;
+      background: transparent;
+      color: rgba(255,255,255,.55);
+      font-size: .83rem;
+      font-weight: 500;
+      transition: background .15s, color .15s, border-color .15s;
+      text-align: left;
       width: 100%;
     }
 
-    .menu button:hover {
-      background: rgba(255, 255, 255, 0.16);
-      transform: translateY(-1px);
+    .nav-item:hover {
+      background: rgba(255,255,255,.07);
+      color: rgba(255,255,255,.9);
     }
 
-    .menu button.active {
-      background: #ffffff;
-      color: #0f1f4a;
-      border-color: #c7d6ff;
-      box-shadow: 0 6px 20px rgba(255, 255, 255, 0.25);
+    .nav-item.active {
+      background: rgba(59,130,246,.18);
+      border-color: rgba(59,130,246,.28);
+      color: #fff;
     }
 
+    .nav-item.active .ni { color: var(--blue-400); }
+
+    .ni {
+      width: 16px; height: 16px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .ni svg {
+      width: 15px; height: 15px;
+      stroke: currentColor; fill: none;
+      stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+    }
+
+    .sidebar-footer {
+      padding: 14px 18px;
+      border-top: 1px solid rgba(255,255,255,.05);
+    }
+
+    .sidebar-footer p { font-size: .72rem; color: rgba(255,255,255,.2); }
+
+    /* ============================================================
+       Workspace
+    ============================================================ */
     .workspace {
-      padding: 28px;
+      margin-left: var(--sidebar-w);
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
     }
 
-    .page-header {
+    /* Top bar */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      height: 52px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      box-shadow: var(--shadow-xs);
+    }
+
+    .topbar-left { display: flex; align-items: center; gap: 10px; }
+
+    .topbar-title { font-size: .9rem; font-weight: 700; color: var(--gray-900); }
+
+    .topbar-sep { width: 1px; height: 16px; background: var(--gray-200); }
+
+    .topbar-desc { font-size: .76rem; color: var(--gray-500); }
+
+    .topbar-right { display: flex; align-items: center; gap: 8px; }
+
+    .pulse {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--green-500);
+      box-shadow: 0 0 0 2px rgba(34,197,94,.25);
+    }
+
+    .topbar-right span { font-size: .73rem; color: var(--gray-400); }
+
+    /* Content */
+    .content { flex: 1; padding: 22px 24px; }
+
+    /* ============================================================
+       Panels
+    ============================================================ */
+    .panel { display: none; animation: panelIn .18s ease; }
+    .panel.active { display: block; }
+
+    @keyframes panelIn {
+      from { opacity: 0; transform: translateY(5px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ============================================================
+       Cards
+    ============================================================ */
+    .card {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 20px;
-      box-shadow: var(--shadow);
-      margin-bottom: 20px;
+      border-radius: var(--r-lg);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
     }
 
-    .page-header h2 {
-      margin: 0;
-      font-size: 1.4rem;
+    .card + .card,
+    .card-grid + .card,
+    .card + .card-grid { margin-top: 14px; }
+
+    .card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--border);
+      background: var(--gray-50);
     }
 
-    .page-header p {
-      margin: 8px 0 0;
-      color: var(--muted);
+    .card-head-left { display: flex; align-items: center; gap: 9px; }
+
+    .ci {
+      width: 28px; height: 28px; border-radius: var(--r-sm);
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
     }
 
-    section {
-      display: none;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      box-shadow: var(--shadow);
-      padding: 24px;
-    }
+    .ci svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
-    section.active {
-      display: block;
-    }
+    .ci-blue   { background: #eff6ff; color: var(--blue-600); }
+    .ci-green  { background: #f0fdf4; color: var(--green-600); }
+    .ci-amber  { background: #fffbeb; color: var(--amber-500); }
+    .ci-purple { background: #faf5ff; color: var(--purple-500); }
 
-    h3 {
-      margin-top: 0;
-      font-size: 1.15rem;
-    }
+    .card-title { font-size: .82rem; font-weight: 700; color: var(--gray-800); }
+    .card-sub   { font-size: .73rem; color: var(--gray-500); margin-top: 1px; }
 
-    p.helper {
-      margin-top: -4px;
-      color: var(--muted);
-      font-size: 0.95rem;
-    }
+    .card-body  { padding: 18px; }
 
-    label {
-      display: block;
-      margin: 14px 0 6px;
-      font-weight: 600;
-      font-size: 0.94rem;
-    }
-
-    input, select, textarea, button {
-      width: 100%;
-      border: 1px solid #cfd8e3;
-      border-radius: 10px;
-      padding: 10px 12px;
-      font: inherit;
-      background: #ffffff;
-    }
-
-    textarea {
-      min-height: 110px;
-      font-family: "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
-      font-size: 0.9rem;
-      line-height: 1.45;
-    }
-
-    button[type="submit"],
-    #load-api,
-    #update-api,
-    #test-api-button {
-      background: var(--primary);
-      color: #ffffff;
-      border: none;
-      font-weight: 600;
-      cursor: pointer;
-      margin-top: 14px;
-    }
-
-    button[type="submit"]:hover,
-    #load-api:hover,
-    #update-api:hover,
-    #test-api-button:hover {
-      background: var(--primary-dark);
-    }
-
-    .row {
+    /* ============================================================
+       Two-column card grid
+    ============================================================ */
+    .card-grid {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 16px;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
     }
 
-    .full-width { grid-column: 1 / -1; }
+    /* ============================================================
+       Form elements
+    ============================================================ */
+    .fg { margin-bottom: 14px; }
+    .fg:last-child { margin-bottom: 0; }
 
-    .output {
-      white-space: pre-wrap;
-      word-break: break-word;
-      background: var(--surface-alt);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      min-height: 84px;
-      padding: 12px;
-      font-family: "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
-      font-size: 0.89rem;
+    .field-row { display: grid; gap: 12px; }
+    .cols-2 { grid-template-columns: 1fr 1fr; }
+    .cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+    .cols-4 { grid-template-columns: 2fr 1fr 1fr 1fr; }
+    .span-2 { grid-column: span 2; }
+
+    label.lbl {
+      display: block;
+      font-size: .75rem;
+      font-weight: 700;
+      color: var(--gray-600);
+      margin-bottom: 5px;
+      letter-spacing: .1px;
     }
 
-    .status {
+    .hint { font-size: .7rem; color: var(--gray-400); margin-top: 4px; line-height: 1.4; }
+
+    input[type="text"],
+    input[type="number"],
+    select {
+      width: 100%;
+      height: 34px;
+      padding: 0 10px;
+      border: 1px solid var(--gray-300);
+      border-radius: var(--r-sm);
+      font: inherit;
+      font-size: .83rem;
+      color: var(--gray-900);
+      background: #fff;
+      transition: border-color .15s, box-shadow .15s;
+      outline: none;
+      appearance: auto;
+    }
+
+    input[type="text"]:focus,
+    input[type="number"]:focus,
+    select:focus {
+      border-color: var(--blue-500);
+      box-shadow: 0 0 0 3px rgba(59,130,246,.12);
+    }
+
+    /* JSON editor textarea */
+    .jed {
+      width: 100%;
+      min-height: 110px;
+      padding: 10px 12px;
+      border: 1px solid var(--gray-300);
+      border-radius: var(--r-sm);
+      font-family: "JetBrains Mono","Fira Code","SFMono-Regular",Consolas,monospace;
+      font-size: .78rem;
+      line-height: 1.65;
+      color: var(--code-text);
+      background: var(--code-bg);
+      resize: vertical;
+      outline: none;
+      tab-size: 2;
+      transition: border-color .15s, box-shadow .15s;
+    }
+
+    .jed:focus {
+      border-color: var(--blue-500);
+      box-shadow: 0 0 0 3px rgba(59,130,246,.12);
+    }
+
+    .jed.sm { min-height: 72px; }
+    .jed.lg { min-height: 150px; }
+
+    /* JSON output (syntax-highlighted, read-only) */
+    .jout {
+      min-height: 60px;
+      padding: 10px 12px;
+      border: 1px solid var(--gray-300);
+      border-radius: var(--r-sm);
+      font-family: "JetBrains Mono","Fira Code","SFMono-Regular",Consolas,monospace;
+      font-size: .78rem;
+      line-height: 1.65;
+      color: var(--code-text);
+      background: var(--code-bg);
+      overflow: auto;
+      white-space: pre;
+    }
+
+    /* Syntax colours */
+    .jk { color: #93c5fd; }   /* key   */
+    .js { color: #86efac; }   /* string */
+    .jn { color: #fda4af; }   /* number */
+    .jb { color: #c4b5fd; }   /* boolean */
+    .jz { color: #94a3b8; }   /* null */
+
+    /* ============================================================
+       Buttons
+    ============================================================ */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      height: 34px; padding: 0 14px;
+      border-radius: var(--r-sm);
+      font: inherit; font-size: .8rem; font-weight: 600;
+      cursor: pointer; border: 1px solid transparent;
+      transition: background .12s, border-color .12s, box-shadow .12s;
+      outline: none; white-space: nowrap;
+    }
+
+    .btn svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+
+    .btn-primary  { background: var(--blue-600); color: #fff; border-color: var(--blue-600); }
+    .btn-primary:hover { background: var(--blue-700); border-color: var(--blue-700); box-shadow: 0 2px 8px rgba(37,99,235,.35); }
+
+    .btn-success  { background: var(--green-600); color: #fff; border-color: var(--green-600); }
+    .btn-success:hover { background: var(--green-700); }
+
+    .btn-secondary { background: #fff; color: var(--gray-700); border-color: var(--gray-300); }
+    .btn-secondary:hover { background: var(--gray-50); border-color: var(--gray-400); }
+
+    .btn-ghost { background: transparent; color: var(--gray-500); border-color: transparent; padding: 0 8px; }
+    .btn-ghost:hover { background: var(--gray-100); color: var(--gray-800); }
+
+    .btn-danger { background: var(--red-600); color: #fff; border-color: var(--red-600); }
+    .btn-danger:hover { background: #b91c1c; }
+
+    .btn-sm  { height: 28px; padding: 0 10px; font-size: .75rem; }
+    .btn-lg  { height: 40px; padding: 0 22px; font-size: .87rem; }
+
+    .btn:disabled { opacity: .5; cursor: not-allowed; pointer-events: none; }
+
+    .btn-row { display: flex; align-items: center; gap: 8px; margin-top: 14px; }
+
+    /* Loading spinner inside button */
+    .spin {
+      width: 13px; height: 13px;
+      border: 2px solid rgba(255,255,255,.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: rotating .65s linear infinite;
+      display: none; flex-shrink: 0;
+    }
+
+    .btn.loading .spin { display: block; }
+    .btn.loading .bl { opacity: .75; }
+
+    @keyframes rotating { to { transform: rotate(360deg); } }
+
+    /* ============================================================
+       Inline status
+    ============================================================ */
+    .ist {
       margin-top: 10px;
-      font-weight: 600;
-      color: #0f5132;
+      padding: 8px 12px;
+      border-radius: var(--r-sm);
+      font-size: .78rem;
+      font-weight: 500;
+      display: none;
     }
 
-    @media (max-width: 960px) {
-      .layout { grid-template-columns: 1fr; }
-      .sidebar { padding: 18px; gap: 16px; }
-      .menu { flex-direction: row; flex-wrap: wrap; }
-      .menu button { width: auto; }
-      .workspace { padding: 18px; }
+    .ist.show { display: block; }
+    .ist.ok   { background: #f0fdf4; color: var(--green-700); border: 1px solid #bbf7d0; }
+    .ist.err  { background: #fef2f2; color: var(--red-600);   border: 1px solid #fecaca; }
+    .ist.info { background: #eff6ff; color: var(--blue-600);  border: 1px solid #bfdbfe; }
+
+    /* ============================================================
+       Mappings
+    ============================================================ */
+    .map-cols-head {
+      display: grid;
+      grid-template-columns: 1fr 28px 1fr 28px;
+      gap: 8px;
+      margin-bottom: 6px;
+      padding: 0 2px;
     }
 
-    @media (max-width: 680px) {
-      .row { grid-template-columns: 1fr; }
-      .menu button { width: 100%; }
+    .map-col-label {
+      font-size: .68rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .6px;
+      color: var(--gray-400);
+    }
+
+    .map-list { display: flex; flex-direction: column; gap: 7px; min-height: 10px; }
+
+    .map-row {
+      display: grid;
+      grid-template-columns: 1fr 28px 1fr 28px;
+      align-items: center;
+      gap: 8px;
+      background: var(--gray-50);
+      border: 1px solid var(--border);
+      border-radius: var(--r-sm);
+      padding: 7px 9px;
+      transition: border-color .15s;
+    }
+
+    .map-row:focus-within { border-color: var(--blue-500); box-shadow: 0 0 0 2px rgba(59,130,246,.08); }
+
+    .map-arrow {
+      text-align: center;
+      font-weight: 700;
+      color: var(--gray-400);
+      font-size: .95rem;
+      user-select: none;
+    }
+
+    .map-input {
+      width: 100%;
+      height: 28px; padding: 0 8px;
+      font-family: "JetBrains Mono", monospace;
+      font-size: .76rem;
+      border: 1px solid var(--gray-300);
+      border-radius: var(--r-xs);
+      background: #fff; color: var(--gray-900);
+      outline: none;
+      transition: border-color .15s;
+    }
+
+    .map-input:focus {
+      border-color: var(--blue-500);
+      box-shadow: 0 0 0 2px rgba(59,130,246,.1);
+    }
+
+    .map-del {
+      width: 26px; height: 26px;
+      display: flex; align-items: center; justify-content: center;
+      background: transparent; border: none; border-radius: var(--r-xs);
+      color: var(--gray-400); cursor: pointer;
+      font-size: 1rem; line-height: 1; padding: 0;
+      transition: background .12s, color .12s;
+    }
+
+    .map-del:hover { background: #fee2e2; color: var(--red-600); }
+
+    .map-empty {
+      text-align: center;
+      padding: 14px 0 6px;
+      color: var(--gray-400);
+      font-size: .78rem;
+      font-style: italic;
+    }
+
+    /* ============================================================
+       Method / storage badges
+    ============================================================ */
+    .mb {
+      display: inline-flex; align-items: center;
+      padding: 2px 7px; border-radius: var(--r-xs);
+      font-size: .68rem; font-weight: 700; letter-spacing: .3px;
+      font-family: "JetBrains Mono", monospace;
+    }
+
+    .mb-GET     { background: #dcfce7; color: #15803d; }
+    .mb-POST    { background: #fef9c3; color: #92400e; }
+    .mb-PUT     { background: #dbeafe; color: #1e40af; }
+    .mb-DELETE  { background: #fee2e2; color: #991b1b; }
+    .mb-PATCH   { background: #f3e8ff; color: #6b21a8; }
+    .mb-OPTIONS { background: #e0f2fe; color: #075985; }
+    .mb-HEAD    { background: #f0fdf4; color: #14532d; }
+
+    .sb {
+      display: inline-flex; align-items: center;
+      padding: 2px 7px; border-radius: var(--r-xs);
+      font-size: .68rem; font-weight: 600;
+    }
+
+    .sb-local { background: #fef3c7; color: #92400e; }
+    .sb-db    { background: #ede9fe; color: #4c1d95; }
+
+    .cnt-badge {
+      display: inline-flex; align-items: center;
+      padding: 2px 7px; border-radius: var(--r-xs);
+      font-size: .68rem; font-weight: 600;
+      background: #f0fdf4; color: var(--green-700);
+    }
+
+    /* ============================================================
+       Registry table
+    ============================================================ */
+    .tbl-wrap {
+      overflow-x: auto;
+    }
+
+    table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+
+    thead { background: var(--gray-50); }
+
+    th {
+      text-align: left;
+      padding: 9px 14px;
+      font-size: .68rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .5px;
+      color: var(--gray-500);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 9px 14px;
+      border-bottom: 1px solid var(--gray-100);
+      color: var(--gray-700);
+      vertical-align: middle;
+    }
+
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--gray-50); }
+
+    .tbl-empty {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 52px 24px; color: var(--gray-400); text-align: center;
+    }
+
+    .tbl-empty svg { width: 38px; height: 38px; stroke: var(--gray-300); fill: none; stroke-width: 1.3; margin-bottom: 10px; }
+
+    .tbl-empty p { font-size: .82rem; line-height: 1.5; }
+
+    /* ============================================================
+       Response status
+    ============================================================ */
+    .res-status {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 5px 12px; border-radius: var(--r-sm);
+      font-size: .78rem; font-weight: 700; font-family: monospace;
+    }
+
+    .res-ok  { background: #f0fdf4; color: var(--green-700); border: 1px solid #bbf7d0; }
+    .res-err { background: #fef2f2; color: var(--red-600);   border: 1px solid #fecaca; }
+
+    /* ============================================================
+       Toast notifications
+    ============================================================ */
+    #toasts {
+      position: fixed; top: 14px; right: 14px; z-index: 9999;
+      display: flex; flex-direction: column; gap: 7px;
+      pointer-events: none;
+    }
+
+    .toast {
+      display: flex; align-items: flex-start; gap: 10px;
+      min-width: 270px; max-width: 360px;
+      padding: 11px 14px;
+      border-radius: var(--r-md);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-lg);
+      font-size: .79rem;
+      animation: toastIn .22s ease;
+      pointer-events: all;
+    }
+
+    .toast.t-ok  { border-left: 3px solid var(--green-500); }
+    .toast.t-err { border-left: 3px solid var(--red-500); }
+    .toast.t-info{ border-left: 3px solid var(--blue-500); }
+
+    .toast-ico { font-size: .95rem; margin-top: 1px; flex-shrink: 0; }
+    .toast-bd { flex: 1; }
+    .toast-title { font-weight: 700; color: var(--gray-800); }
+    .toast-msg   { color: var(--gray-500); margin-top: 2px; }
+
+    @keyframes toastIn  { from { opacity:0; transform: translateX(14px); } to { opacity:1; transform: translateX(0); } }
+    @keyframes toastOut { from { opacity:1; transform: translateX(0);    } to { opacity:0; transform: translateX(14px); } }
+
+    /* ============================================================
+       Separator
+    ============================================================ */
+    .sep { height: 1px; background: var(--border); margin: 14px 0; }
+
+    /* ============================================================
+       Responsive
+    ============================================================ */
+    @media (max-width: 860px) {
+      :root { --sidebar-w: 210px; }
+      .card-grid { grid-template-columns: 1fr; }
+      .cols-4 { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 640px) {
+      .sidebar { position: relative; width: 100%; min-height: auto; }
+      .workspace { margin-left: 0; }
+      body { flex-direction: column; }
+      .sidebar-nav { flex-direction: row; flex-wrap: wrap; padding: 8px; }
+      .nav-item { width: auto; flex: 1; min-width: 100px; }
+      .cols-2, .cols-3, .cols-4 { grid-template-columns: 1fr; }
+      .span-2 { grid-column: span 1; }
     }
   </style>
 </head>
 <body>
-  <div class="layout">
-    <aside class="sidebar">
-      <div class="brand">
-        <h1>Virtual API Builder</h1>
-        <p>Manage API mocks with a clean, professional workflow.</p>
+
+<!-- Toast container -->
+<div id="toasts"></div>
+
+<!-- ================================================================
+     Sidebar
+================================================================ -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-row">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
       </div>
-      <nav class="menu" aria-label="Functionalities">
-        <button type="button" class="menu-item active" data-target="add-section">Add Virtual API</button>
-        <button type="button" class="menu-item" data-target="manage-section">Retrieve / Update API</button>
-        <button type="button" class="menu-item" data-target="test-section">Test Virtual API</button>
-      </nav>
-    </aside>
-
-    <main class="workspace">
-      <header class="page-header">
-        <h2 id="section-title">Add Virtual API</h2>
-        <p id="section-description">Define a new endpoint, request filters, and mock response details.</p>
-      </header>
-
-      <section id="add-section" class="active">
-        <h3>Add Virtual API</h3>
-        <p class="helper">Create and register a virtual endpoint with request/response payloads and headers.</p>
-        <form id="add-form">
-          <div class="row">
-            <div>
-              <label for="add-api">API Path</label>
-              <input id="add-api" placeholder="/my/api/path" required />
-            </div>
-            <div>
-              <label for="add-method">Method</label>
-              <select id="add-method">
-                <option>GET</option>
-                <option>POST</option>
-                <option>PUT</option>
-                <option>DELETE</option>
-                <option>PATCH</option>
-                <option>OPTIONS</option>
-                <option>HEAD</option>
-              </select>
-            </div>
-            <div>
-              <label for="add-storage">Storage</label>
-              <select id="add-storage">
-                <option value="local">Local JSON</option>
-                <option value="db">Database</option>
-              </select>
-            </div>
-            <div>
-              <label for="add-delay">Delay (seconds)</label>
-              <input id="add-delay" type="number" min="0" value="0" />
-            </div>
-            <div class="full-width">
-              <label for="add-request-payload">Request Payload (JSON)</label>
-              <textarea id="add-request-payload">{}</textarea>
-            </div>
-            <div class="full-width">
-              <label for="add-request-header">Request Header (JSON)</label>
-              <textarea id="add-request-header">{}</textarea>
-            </div>
-            <div class="full-width">
-              <label for="add-response-payload">Response Payload (JSON)</label>
-              <textarea id="add-response-payload">{}</textarea>
-            </div>
-            <div class="full-width">
-              <label for="add-response-header">Response Header (JSON)</label>
-              <textarea id="add-response-header">{}</textarea>
-            </div>
-          </div>
-          <button type="submit">Add Virtual API</button>
-          <div id="add-status" class="status"></div>
-        </form>
-      </section>
-
-      <section id="manage-section">
-        <h3>Retrieve / Update API</h3>
-        <p class="helper">Load an existing endpoint, revise payload/headers, and save your updates.</p>
-        <div class="row">
-          <div>
-            <label for="manage-api-select">Saved Virtual APIs</label>
-            <select id="manage-api-select">
-              <option value="">-- Select saved API --</option>
-            </select>
-          </div>
-          <div>
-            <label for="manage-storage">Storage</label>
-            <select id="manage-storage">
-              <option value="local">Local JSON</option>
-              <option value="db">Database</option>
-            </select>
-          </div>
-        </div>
-        <div class="row">
-          <div>
-            <label for="manage-api">API Path</label>
-            <input id="manage-api" placeholder="/my/api/path" />
-          </div>
-          <div>
-            <label for="manage-method">Method</label>
-            <select id="manage-method">
-              <option>GET</option>
-              <option>POST</option>
-              <option>PUT</option>
-              <option>DELETE</option>
-              <option>PATCH</option>
-              <option>OPTIONS</option>
-              <option>HEAD</option>
-            </select>
-          </div>
-        </div>
-        <div class="row">
-          <div>
-            <label>&nbsp;</label>
-            <button id="load-api" type="button">Load API</button>
-          </div>
-          <div>
-            <label>&nbsp;</label>
-            <button id="refresh-manage-list" type="button">Refresh List</button>
-          </div>
-        </div>
-        <div class="row">
-          <div class="full-width">
-            <label for="manage-request-payload">Request Payload (JSON)</label>
-            <textarea id="manage-request-payload"></textarea>
-          </div>
-          <div class="full-width">
-            <label for="manage-request-header">Request Header (JSON)</label>
-            <textarea id="manage-request-header"></textarea>
-          </div>
-          <div class="full-width">
-            <label for="manage-response-payload">Response Payload (JSON)</label>
-            <textarea id="manage-response-payload"></textarea>
-          </div>
-          <div class="full-width">
-            <label for="manage-response-header">Response Header (JSON)</label>
-            <textarea id="manage-response-header"></textarea>
-          </div>
-          <div class="full-width">
-            <label for="manage-delay">Delay (seconds)</label>
-            <input id="manage-delay" type="number" min="0" />
-          </div>
-        </div>
-        <button id="update-api" type="button">Update API</button>
-        <div id="manage-status" class="status"></div>
-      </section>
-
-      <section id="test-section">
-        <h3>Test Virtual API</h3>
-        <p class="helper">Send test requests to a configured virtual endpoint and inspect response details.</p>
-        <div class="row">
-          <div>
-            <label for="test-api-select">Saved Virtual APIs</label>
-            <select id="test-api-select">
-              <option value="">-- Select saved API --</option>
-            </select>
-          </div>
-          <div>
-            <label for="test-storage">Storage</label>
-            <select id="test-storage">
-              <option value="local">Local JSON</option>
-              <option value="db">Database</option>
-            </select>
-          </div>
-        </div>
-        <div class="row">
-          <div>
-            <label for="test-api">API Path</label>
-            <input id="test-api" placeholder="/my/api/path" />
-          </div>
-          <div>
-            <label for="test-method">Method</label>
-            <select id="test-method">
-              <option>GET</option>
-              <option>POST</option>
-              <option>PUT</option>
-              <option>DELETE</option>
-              <option>PATCH</option>
-              <option>OPTIONS</option>
-              <option>HEAD</option>
-            </select>
-          </div>
-        </div>
-        <div class="row">
-          <div>
-            <label>&nbsp;</label>
-            <button id="test-api-button" type="button">Send Request</button>
-          </div>
-          <div>
-            <label>&nbsp;</label>
-            <button id="refresh-test-list" type="button">Refresh List</button>
-          </div>
-        </div>
-        <div class="full-width">
-          <label for="test-request-payload">Request Payload (JSON)</label>
-          <textarea id="test-request-payload">{}</textarea>
-        </div>
-        <div class="row">
-          <div class="full-width">
-            <label>Response Status</label>
-            <div id="test-status" class="output"></div>
-          </div>
-          <div class="full-width">
-            <label>Response Headers</label>
-            <div id="test-headers" class="output"></div>
-          </div>
-          <div class="full-width">
-            <label>Response Payload</label>
-            <div id="test-response" class="output"></div>
-          </div>
-        </div>
-      </section>
-    </main>
+      <span class="brand-name">Virtual API Builder</span>
+    </div>
+    <p class="brand-sub">Mock, manage &amp; test endpoints</p>
   </div>
 
-  <script>
-    function parseJson(text) {
-      try {
-        return text.trim() === '' ? {} : JSON.parse(text);
-      } catch (error) {
-        throw new Error('Invalid JSON: ' + error.message);
-      }
-    }
+  <nav class="sidebar-nav">
+    <span class="nav-label">Workspace</span>
 
-    function prettyJson(value) {
-      return JSON.stringify(value, null, 2);
-    }
+    <button class="nav-item active" data-panel="panel-add">
+      <span class="ni"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
+      Add Virtual API
+    </button>
 
-    const sectionCopy = {
-      'add-section': {
-        title: 'Add Virtual API',
-        description: 'Define a new endpoint, request filters, and mock response details.',
-      },
-      'manage-section': {
-        title: 'Retrieve / Update API',
-        description: 'Load an existing API configuration, edit data, and save changes.',
-      },
-      'test-section': {
-        title: 'Test Virtual API',
-        description: 'Run requests against mock endpoints and inspect full response output.',
-      },
+    <button class="nav-item" data-panel="panel-manage">
+      <span class="ni"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span>
+      Manage API
+    </button>
+
+    <button class="nav-item" data-panel="panel-test">
+      <span class="ni"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg></span>
+      Test API
+    </button>
+
+    <button class="nav-item" data-panel="panel-registry">
+      <span class="ni"><svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></span>
+      API Registry
+    </button>
+  </nav>
+
+  <div class="sidebar-footer">
+    <p>Virtual API Builder &mdash; Lite showcase</p>
+  </div>
+</aside>
+
+<!-- ================================================================
+     Workspace
+================================================================ -->
+<div class="workspace">
+
+  <!-- Top bar -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <span class="topbar-title" id="tb-title">Add Virtual API</span>
+      <div class="topbar-sep"></div>
+      <span class="topbar-desc" id="tb-desc">Register a new mock endpoint with custom response and field mappings</span>
+    </div>
+    <div class="topbar-right">
+      <div class="pulse"></div>
+      <span>Server running</span>
+    </div>
+  </header>
+
+  <div class="content">
+
+    <!-- ==============================================================
+         PANEL — Add
+    ============================================================== -->
+    <div class="panel active" id="panel-add">
+      <form id="form-add" autocomplete="off">
+
+        <!-- Endpoint config -->
+        <div class="card">
+          <div class="card-head">
+            <div class="card-head-left">
+              <div class="ci ci-blue"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>
+              <div>
+                <div class="card-title">Endpoint Configuration</div>
+                <div class="card-sub">Path, method, storage backend and simulated latency</div>
+              </div>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="field-row cols-4">
+              <div class="fg span-2">
+                <label class="lbl">API Path</label>
+                <input type="text" id="a-api" placeholder="/api/v1/resource" required />
+              </div>
+              <div class="fg">
+                <label class="lbl">HTTP Method</label>
+                <select id="a-method">
+                  <option>GET</option><option>POST</option><option>PUT</option>
+                  <option>DELETE</option><option>PATCH</option><option>OPTIONS</option><option>HEAD</option>
+                </select>
+              </div>
+              <div class="fg">
+                <label class="lbl">Storage</label>
+                <select id="a-storage">
+                  <option value="local">Local JSON</option>
+                  <option value="db">MongoDB</option>
+                </select>
+              </div>
+            </div>
+            <div class="field-row cols-4">
+              <div class="fg">
+                <label class="lbl">Delay (seconds)</label>
+                <input type="number" id="a-delay" min="0" value="0" />
+                <p class="hint">Artificial latency to simulate slow backends.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Request / Response side-by-side -->
+        <div class="card-grid" style="margin-top:14px">
+
+          <div class="card">
+            <div class="card-head">
+              <div class="card-head-left">
+                <div class="ci ci-amber"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+                <div>
+                  <div class="card-title">Request Contract</div>
+                  <div class="card-sub">Expected payload &amp; headers (documentation only)</div>
+                </div>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="fg">
+                <label class="lbl">Request Payload (JSON)</label>
+                <textarea class="jed" id="a-req-payload">{}</textarea>
+              </div>
+              <div class="fg">
+                <label class="lbl">Request Headers (JSON)</label>
+                <textarea class="jed sm" id="a-req-header">{}</textarea>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <div class="card-head-left">
+                <div class="ci ci-green"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+                <div>
+                  <div class="card-title">Response Contract</div>
+                  <div class="card-sub">Mock body &amp; headers returned to callers</div>
+                </div>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="fg">
+                <label class="lbl">Response Payload (JSON)</label>
+                <textarea class="jed" id="a-res-payload">{}</textarea>
+              </div>
+              <div class="fg">
+                <label class="lbl">Response Headers (JSON)</label>
+                <textarea class="jed sm" id="a-res-header">{}</textarea>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /card-grid -->
+
+        <!-- Mappings -->
+        <div class="card" style="margin-top:14px">
+          <div class="card-head">
+            <div class="card-head-left">
+              <div class="ci ci-purple">
+                <svg viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+              </div>
+              <div>
+                <div class="card-title">Request → Response Field Mappings</div>
+                <div class="card-sub">At runtime, copy a value from the incoming request payload into the mock response. Supports dot-notation for nested fields (e.g. <code style="font-family:monospace">user.id</code>).</div>
+              </div>
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="addMapRow('map-add')">
+              <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add Mapping
+            </button>
+          </div>
+          <div class="card-body">
+            <div class="map-cols-head">
+              <span class="map-col-label">From — request path</span>
+              <span></span>
+              <span class="map-col-label">To — response path</span>
+              <span></span>
+            </div>
+            <div class="map-list" id="map-add">
+              <div class="map-empty">No mappings yet. Click "Add Mapping" to start.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button type="submit" class="btn btn-primary btn-lg" id="btn-add">
+            <span class="spin"></span>
+            <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span class="bl">Register Virtual API</span>
+          </button>
+          <button type="button" class="btn btn-secondary" onclick="resetAddForm()">Reset</button>
+        </div>
+        <div class="ist" id="ist-add"></div>
+
+      </form>
+    </div><!-- /panel-add -->
+
+
+    <!-- ==============================================================
+         PANEL — Manage
+    ============================================================== -->
+    <div class="panel" id="panel-manage">
+
+      <!-- Lookup card -->
+      <div class="card">
+        <div class="card-head">
+          <div class="card-head-left">
+            <div class="ci ci-blue"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
+            <div>
+              <div class="card-title">Find API</div>
+              <div class="card-sub">Select from the registry or enter a path manually, then load</div>
+            </div>
+          </div>
+          <button class="btn btn-secondary btn-sm" id="btn-refresh-manage">
+            <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            Refresh List
+          </button>
+        </div>
+        <div class="card-body">
+          <div class="field-row cols-2">
+            <div class="fg">
+              <label class="lbl">Saved Virtual APIs</label>
+              <select id="m-select"><option value="">-- Select a registered API --</option></select>
+            </div>
+            <div class="fg">
+              <label class="lbl">Storage</label>
+              <select id="m-storage">
+                <option value="local">Local JSON</option>
+                <option value="db">MongoDB</option>
+              </select>
+            </div>
+          </div>
+          <div class="field-row cols-2">
+            <div class="fg">
+              <label class="lbl">API Path</label>
+              <input type="text" id="m-api" placeholder="/api/v1/resource" />
+            </div>
+            <div class="fg">
+              <label class="lbl">HTTP Method</label>
+              <select id="m-method">
+                <option>GET</option><option>POST</option><option>PUT</option>
+                <option>DELETE</option><option>PATCH</option><option>OPTIONS</option><option>HEAD</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn btn-primary" id="btn-load">
+            <span class="spin"></span>
+            <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span class="bl">Load API</span>
+          </button>
+          <div class="ist" id="ist-load"></div>
+        </div>
+      </div>
+
+      <!-- Edit cards -->
+      <div class="card-grid" style="margin-top:14px">
+
+        <div class="card">
+          <div class="card-head">
+            <div class="card-head-left">
+              <div class="ci ci-amber"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+              <div><div class="card-title">Request Contract</div></div>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="fg">
+              <label class="lbl">Request Payload (JSON)</label>
+              <textarea class="jed" id="m-req-payload"></textarea>
+            </div>
+            <div class="fg">
+              <label class="lbl">Request Headers (JSON)</label>
+              <textarea class="jed sm" id="m-req-header"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <div class="card-head-left">
+              <div class="ci ci-green"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+              <div><div class="card-title">Response Contract</div></div>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="fg">
+              <label class="lbl">Response Payload (JSON)</label>
+              <textarea class="jed" id="m-res-payload"></textarea>
+            </div>
+            <div class="fg">
+              <label class="lbl">Response Headers (JSON)</label>
+              <textarea class="jed sm" id="m-res-header"></textarea>
+            </div>
+            <div class="fg">
+              <label class="lbl">Delay (seconds)</label>
+              <input type="number" id="m-delay" min="0" value="0" />
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Mappings -->
+      <div class="card" style="margin-top:14px">
+        <div class="card-head">
+          <div class="card-head-left">
+            <div class="ci ci-purple">
+              <svg viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+            </div>
+            <div>
+              <div class="card-title">Request → Response Field Mappings</div>
+              <div class="card-sub">Edit mappings for this endpoint</div>
+            </div>
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="addMapRow('map-manage')">
+            <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Mapping
+          </button>
+        </div>
+        <div class="card-body">
+          <div class="map-cols-head">
+            <span class="map-col-label">From — request path</span>
+            <span></span>
+            <span class="map-col-label">To — response path</span>
+            <span></span>
+          </div>
+          <div class="map-list" id="map-manage">
+            <div class="map-empty">Load an API to see its mappings.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button type="button" class="btn btn-success btn-lg" id="btn-update">
+          <span class="spin"></span>
+          <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          <span class="bl">Save Changes</span>
+        </button>
+      </div>
+      <div class="ist" id="ist-update"></div>
+
+    </div><!-- /panel-manage -->
+
+
+    <!-- ==============================================================
+         PANEL — Test
+    ============================================================== -->
+    <div class="panel" id="panel-test">
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-head-left">
+            <div class="ci ci-blue"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>
+            <div>
+              <div class="card-title">Request Configuration</div>
+              <div class="card-sub">Choose a registered endpoint and fire a test request</div>
+            </div>
+          </div>
+          <button class="btn btn-secondary btn-sm" id="btn-refresh-test">
+            <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            Refresh List
+          </button>
+        </div>
+        <div class="card-body">
+          <div class="field-row cols-2">
+            <div class="fg">
+              <label class="lbl">Saved Virtual APIs</label>
+              <select id="t-select"><option value="">-- Select a registered API --</option></select>
+            </div>
+            <div class="fg">
+              <label class="lbl">Storage</label>
+              <select id="t-storage">
+                <option value="local">Local JSON</option>
+                <option value="db">MongoDB</option>
+              </select>
+            </div>
+          </div>
+          <div class="field-row cols-2">
+            <div class="fg">
+              <label class="lbl">API Path</label>
+              <input type="text" id="t-api" placeholder="/api/v1/resource" />
+            </div>
+            <div class="fg">
+              <label class="lbl">HTTP Method</label>
+              <select id="t-method">
+                <option>GET</option><option>POST</option><option>PUT</option>
+                <option>DELETE</option><option>PATCH</option><option>OPTIONS</option><option>HEAD</option>
+              </select>
+            </div>
+          </div>
+          <div class="fg">
+            <label class="lbl">Request Payload (JSON)</label>
+            <textarea class="jed" id="t-req-payload">{}</textarea>
+            <p class="hint">If field mappings are configured on this endpoint, values will be extracted from this payload and injected into the response at runtime.</p>
+          </div>
+          <div class="btn-row" style="margin-top:6px">
+            <button type="button" class="btn btn-primary btn-lg" id="btn-test">
+              <span class="spin"></span>
+              <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              <span class="bl">Send Request</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Response -->
+      <div class="card" style="margin-top:14px">
+        <div class="card-head">
+          <div class="card-head-left">
+            <div class="ci ci-green"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+            <div>
+              <div class="card-title">Response</div>
+              <div class="card-sub">Output from the virtual endpoint</div>
+            </div>
+          </div>
+          <div id="t-status-badge"></div>
+        </div>
+        <div class="card-body">
+          <div class="fg">
+            <label class="lbl">Response Headers</label>
+            <div class="jout" id="t-headers">—</div>
+          </div>
+          <div class="fg">
+            <label class="lbl">Response Payload</label>
+            <div class="jout" id="t-response" style="min-height:100px">—</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /panel-test -->
+
+
+    <!-- ==============================================================
+         PANEL — Registry
+    ============================================================== -->
+    <div class="panel" id="panel-registry">
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-head-left">
+            <div class="ci ci-blue">
+              <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            </div>
+            <div>
+              <div class="card-title">All Registered Endpoints</div>
+              <div class="card-sub">Browse and jump to any virtual API</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="reg-storage" style="height:28px;width:auto;font-size:.76rem;padding:0 8px">
+              <option value="auto">All storage</option>
+              <option value="local">Local JSON</option>
+              <option value="db">MongoDB</option>
+            </select>
+            <button class="btn btn-secondary btn-sm" id="btn-refresh-registry">
+              <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+              Refresh
+            </button>
+          </div>
+        </div>
+        <div id="reg-body">
+          <div class="tbl-empty">
+            <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            <p>Loading registry…</p>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /panel-registry -->
+
+  </div><!-- /content -->
+</div><!-- /workspace -->
+
+<script>
+/* ================================================================
+   Helpers
+================================================================ */
+function parseJson(text) {
+  try { return text.trim() === '' ? {} : JSON.parse(text); }
+  catch (e) { throw new Error('Invalid JSON: ' + e.message); }
+}
+
+function pretty(v) { return typeof v === 'string' ? v : JSON.stringify(v, null, 2); }
+
+function syntaxHL(obj) {
+  let s = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2);
+  s = s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return s.replace(
+    /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+    m => {
+      let c = 'jn';
+      if (/^"/.test(m))        c = /:$/.test(m) ? 'jk' : 'js';
+      else if (/true|false/.test(m)) c = 'jb';
+      else if (/null/.test(m)) c = 'jz';
+      return `<span class="${c}">${m}</span>`;
+    }
+  );
+}
+
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escAttr(s) { return String(s).replace(/'/g,"&#39;").replace(/"/g,'&quot;'); }
+
+function methodBadge(m) { return `<span class="mb mb-${m}">${m}</span>`; }
+
+function storageBadge(s) {
+  const cls = s === 'database' ? 'sb-db' : 'sb-local';
+  const lbl = s === 'database' ? 'MongoDB' : 'Local';
+  return `<span class="sb ${cls}">${lbl}</span>`;
+}
+
+/* ================================================================
+   Toasts
+================================================================ */
+function toast(type, title, msg, ms = 3400) {
+  const icons = { ok:'✓', err:'✕', info:'ℹ' };
+  const el = document.createElement('div');
+  el.className = `toast t-${type}`;
+  el.innerHTML = `<span class="toast-ico">${icons[type]||'•'}</span>
+    <div class="toast-bd">
+      <div class="toast-title">${title}</div>
+      ${msg ? `<div class="toast-msg">${msg}</div>` : ''}
+    </div>`;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(() => {
+    el.style.animation = 'toastOut .22s ease forwards';
+    setTimeout(() => el.remove(), 230);
+  }, ms);
+}
+
+/* ================================================================
+   Button loading state
+================================================================ */
+function setLoading(btn, on) { btn.classList.toggle('loading', on); btn.disabled = on; }
+
+/* ================================================================
+   Inline status
+================================================================ */
+function showIST(id, type, msg) {
+  const el = document.getElementById(id);
+  el.className = `ist ${type} show`;
+  el.textContent = msg;
+}
+function clearIST(id) {
+  const el = document.getElementById(id);
+  el.className = 'ist';
+  el.textContent = '';
+}
+
+/* ================================================================
+   Navigation
+================================================================ */
+const META = {
+  'panel-add':      { title:'Add Virtual API',   desc:'Register a new mock endpoint with custom response and field mappings' },
+  'panel-manage':   { title:'Manage API',         desc:'Load, edit and save changes to a registered virtual endpoint' },
+  'panel-test':     { title:'Test API',           desc:'Send test requests to a mock endpoint and inspect the response' },
+  'panel-registry': { title:'API Registry',       desc:'Browse all registered virtual endpoints across storage backends' },
+};
+
+document.querySelectorAll('.nav-item').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const id = btn.dataset.panel;
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    btn.classList.add('active');
+    const m = META[id];
+    document.getElementById('tb-title').textContent = m.title;
+    document.getElementById('tb-desc').textContent  = m.desc;
+    if (id === 'panel-registry') loadRegistry();
+  });
+});
+
+/* ================================================================
+   API list helpers
+================================================================ */
+async function fetchList(storage) {
+  const r = await fetch(`/virtual_apis/list?storage=${encodeURIComponent(storage)}`);
+  if (!r.ok) throw new Error('Could not load API list');
+  return r.json();
+}
+
+function fillSelect(id, apis) {
+  const sel = document.getElementById(id);
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">-- Select a registered API --</option>';
+  apis.forEach(item => {
+    const o = document.createElement('option');
+    o.value = item.api;
+    o.dataset.method  = item.method;
+    o.dataset.storage = item.storage || 'local';
+    o.textContent = `${item.api}  [${item.method}]  (${item.storage})`;
+    sel.appendChild(o);
+  });
+  if (prev) sel.value = prev;
+}
+
+async function refreshLists() {
+  try {
+    const mS = document.getElementById('m-storage').value;
+    const tS = document.getElementById('t-storage').value;
+    const [mA, tA] = await Promise.all([fetchList(mS), fetchList(tS)]);
+    fillSelect('m-select', mA);
+    fillSelect('t-select', tA);
+  } catch(e) { console.warn(e); }
+}
+
+function applySelect(selId, apiId, methodId) {
+  const sel = document.getElementById(selId);
+  const opt = sel.selectedOptions[0];
+  if (!opt || !opt.value) return;
+  document.getElementById(apiId).value = opt.value;
+  document.getElementById(methodId).value = opt.dataset.method;
+}
+
+/* ================================================================
+   Mapping rows
+================================================================ */
+function addMapRow(listId, fromVal = '', toVal = '') {
+  const list = document.getElementById(listId);
+  const empty = list.querySelector('.map-empty');
+  if (empty) empty.remove();
+
+  const row = document.createElement('div');
+  row.className = 'map-row';
+  row.innerHTML = `
+    <input class="map-input map-from" placeholder="request.field.path" value="${escAttr(fromVal)}" />
+    <span class="map-arrow">→</span>
+    <input class="map-input map-to"   placeholder="response.field.path" value="${escAttr(toVal)}" />
+    <button type="button" class="map-del" title="Remove">×</button>`;
+  row.querySelector('.map-del').addEventListener('click', () => {
+    row.remove();
+    if (!list.querySelectorAll('.map-row').length)
+      list.innerHTML = '<div class="map-empty">No mappings defined.</div>';
+  });
+  list.appendChild(row);
+}
+
+function getMaps(listId) {
+  return Array.from(document.querySelectorAll(`#${listId} .map-row`)).map(r => ({
+    from_key: r.querySelector('.map-from').value.trim(),
+    to_key:   r.querySelector('.map-to').value.trim(),
+  })).filter(m => m.from_key && m.to_key);
+}
+
+function renderMaps(listId, mappings) {
+  const list = document.getElementById(listId);
+  list.innerHTML = '';
+  if (!mappings || !mappings.length) {
+    list.innerHTML = '<div class="map-empty">No mappings defined.</div>';
+    return;
+  }
+  mappings.forEach(m => addMapRow(listId, m.from_key, m.to_key));
+}
+
+/* ================================================================
+   Add panel
+================================================================ */
+function resetAddForm() {
+  ['a-api'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('a-method').value  = 'GET';
+  document.getElementById('a-storage').value = 'local';
+  document.getElementById('a-delay').value   = '0';
+  document.getElementById('a-req-payload').value = '{}';
+  document.getElementById('a-req-header').value  = '{}';
+  document.getElementById('a-res-payload').value = '{}';
+  document.getElementById('a-res-header').value  = '{}';
+  renderMaps('map-add', []);
+  clearIST('ist-add');
+}
+
+document.getElementById('form-add').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = document.getElementById('btn-add');
+  setLoading(btn, true);
+  clearIST('ist-add');
+  try {
+    const api     = document.getElementById('a-api').value.trim();
+    const method  = document.getElementById('a-method').value;
+    const storage = document.getElementById('a-storage').value;
+    const delay   = Number(document.getElementById('a-delay').value || 0);
+    const body = {
+      api, method, delay,
+      request_payload:  parseJson(document.getElementById('a-req-payload').value),
+      request_header:   parseJson(document.getElementById('a-req-header').value),
+      response_payload: parseJson(document.getElementById('a-res-payload').value),
+      response_header:  parseJson(document.getElementById('a-res-header').value),
+      mappings: getMaps('map-add'),
+    };
+    const r = await fetch(`/add_virtual_apis?storage=${encodeURIComponent(storage)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Failed to register API');
+    toast('ok', 'API Registered', `${method} ${api}`);
+    showIST('ist-add', 'ok', `Registered: ${method} ${api}`);
+    await refreshLists();
+  } catch(err) {
+    toast('err', 'Error', err.message);
+    showIST('ist-add', 'err', err.message);
+  } finally {
+    setLoading(btn, false);
+  }
+});
+
+/* ================================================================
+   Manage panel
+================================================================ */
+document.getElementById('btn-load').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-load');
+  setLoading(btn, true);
+  clearIST('ist-load');
+  clearIST('ist-update');
+  try {
+    const api     = document.getElementById('m-api').value.trim();
+    const method  = document.getElementById('m-method').value;
+    const storage = document.getElementById('m-storage').value;
+    if (!api) throw new Error('API path is required');
+
+    const r = await fetch(`/virtual_apis?api=${encodeURIComponent(api)}&method=${encodeURIComponent(method)}&storage=${encodeURIComponent(storage)}`);
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'API not found');
+
+    document.getElementById('m-req-payload').value = pretty(data.request_payload  || {});
+    document.getElementById('m-req-header').value  = pretty(data.request_header   || {});
+    document.getElementById('m-res-payload').value = pretty(data.response_payload || {});
+    document.getElementById('m-res-header').value  = pretty(data.response_header  || {});
+    document.getElementById('m-delay').value        = data.delay ?? 0;
+    document.getElementById('m-method').value       = data.method || method;
+    renderMaps('map-manage', data.mappings || []);
+
+    showIST('ist-load', 'ok', `Loaded: ${data.method} ${api}`);
+    toast('info', 'API Loaded', `${data.method} ${api}`);
+  } catch(err) {
+    toast('err', 'Load Failed', err.message);
+    showIST('ist-load', 'err', err.message);
+  } finally {
+    setLoading(btn, false);
+  }
+});
+
+document.getElementById('btn-update').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-update');
+  setLoading(btn, true);
+  clearIST('ist-update');
+  try {
+    const api     = document.getElementById('m-api').value.trim();
+    const method  = document.getElementById('m-method').value;
+    const storage = document.getElementById('m-storage').value;
+    if (!api) throw new Error('API path is required');
+
+    const payload = {
+      method,
+      request_payload:  parseJson(document.getElementById('m-req-payload').value),
+      request_header:   parseJson(document.getElementById('m-req-header').value),
+      response_payload: parseJson(document.getElementById('m-res-payload').value),
+      response_header:  parseJson(document.getElementById('m-res-header').value),
+      delay:    Number(document.getElementById('m-delay').value || 0),
+      mappings: getMaps('map-manage'),
     };
 
-    function activateSection(targetId) {
-      document.querySelectorAll('section').forEach((section) => {
-        section.classList.toggle('active', section.id === targetId);
-      });
+    const r = await fetch(
+      `/virtual_apis?api=${encodeURIComponent(api)}&method=${encodeURIComponent(method)}&storage=${encodeURIComponent(storage)}`,
+      { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) }
+    );
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Update failed');
+    toast('ok', 'API Updated', `${method} ${api} saved`);
+    showIST('ist-update', 'ok', data.message);
+    await refreshLists();
+  } catch(err) {
+    toast('err', 'Update Failed', err.message);
+    showIST('ist-update', 'err', err.message);
+  } finally {
+    setLoading(btn, false);
+  }
+});
 
-      document.querySelectorAll('.menu-item').forEach((button) => {
-        button.classList.toggle('active', button.dataset.target === targetId);
-      });
+/* ================================================================
+   Test panel
+================================================================ */
+document.getElementById('btn-test').addEventListener('click', async () => {
+  const btn   = document.getElementById('btn-test');
+  const hdrs  = document.getElementById('t-headers');
+  const res   = document.getElementById('t-response');
+  const badge = document.getElementById('t-status-badge');
 
-      const copy = sectionCopy[targetId];
-      if (copy) {
-        document.getElementById('section-title').textContent = copy.title;
-        document.getElementById('section-description').textContent = copy.description;
-      }
-    }
+  setLoading(btn, true);
+  hdrs.textContent = '…';
+  res.textContent  = '…';
+  badge.innerHTML  = '';
 
-    function buildApiOption(item) {
-      const option = document.createElement('option');
-      option.value = item.api;
-      option.dataset.method = item.method;
-      option.dataset.storage = item.storage || 'local';
-      option.textContent = `${item.api} [${item.method}] (${item.storage})`;
-      return option;
-    }
+  try {
+    const api     = document.getElementById('t-api').value.trim();
+    const method  = document.getElementById('t-method').value;
+    const storage = document.getElementById('t-storage').value;
+    if (!api) throw new Error('API path is required');
 
-    async function fetchSavedApis(storage) {
-      const response = await fetch(`/virtual_apis/list?storage=${encodeURIComponent(storage)}`);
-      if (!response.ok) {
-        throw new Error('Unable to load saved APIs');
-      }
-      return await response.json();
-    }
-
-    function populateSavedApiSelect(selectId, apis) {
-      const select = document.getElementById(selectId);
-      select.innerHTML = '<option value="">-- Select saved API --</option>';
-      apis.forEach((item) => select.appendChild(buildApiOption(item)));
-    }
-
-    async function refreshSavedApiLists() {
-      try {
-        const manageStorage = document.getElementById('manage-storage').value;
-        const testStorage = document.getElementById('test-storage').value;
-        const [manageApis, testApis] = await Promise.all([
-          fetchSavedApis(manageStorage),
-          fetchSavedApis(testStorage),
-        ]);
-        populateSavedApiSelect('manage-api-select', manageApis);
-        populateSavedApiSelect('test-api-select', testApis);
-      } catch (error) {
-        console.warn('Could not refresh saved API list', error);
-      }
-    }
-
-    function applySavedApiSelection(selectId, apiFieldId, methodFieldId) {
-      const select = document.getElementById(selectId);
-      const option = select.selectedOptions[0];
-      if (!option || !option.value) {
-        return;
-      }
-      document.getElementById(apiFieldId).value = option.value;
-      document.getElementById(methodFieldId).value = option.dataset.method;
-    }
-
-    async function addVirtualApi(event) {
-      event.preventDefault();
-      const status = document.getElementById('add-status');
-      status.textContent = '';
-
-      try {
-        const api = document.getElementById('add-api').value.trim();
-        const method = document.getElementById('add-method').value.trim().toUpperCase();
-        const storage = document.getElementById('add-storage').value;
-        const request_payload = parseJson(document.getElementById('add-request-payload').value);
-        const request_header = parseJson(document.getElementById('add-request-header').value);
-        const response_payload = parseJson(document.getElementById('add-response-payload').value);
-        const response_header = parseJson(document.getElementById('add-response-header').value);
-        const delay = Number(document.getElementById('add-delay').value || 0);
-
-        const response = await fetch(`/add_virtual_apis?storage=${encodeURIComponent(storage)}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ api, method, request_payload, request_header, response_payload, response_header, delay }),
-        });
-
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.detail || data.message || 'Unable to add API');
-        status.textContent = `API added: ${data.api}`;
-        await refreshSavedApiLists();
-      } catch (error) {
-        status.textContent = error.message;
-      }
-    }
-
-    async function loadApi() {
-      const status = document.getElementById('manage-status');
-      status.textContent = '';
-      try {
-        const api = document.getElementById('manage-api').value.trim();
-        const method = document.getElementById('manage-method').value.trim().toUpperCase();
-        const storage = document.getElementById('manage-storage').value;
-        if (!api) throw new Error('API path is required');
-
-        const response = await fetch(
-          `/virtual_apis?api=${encodeURIComponent(api)}&method=${encodeURIComponent(method)}&storage=${encodeURIComponent(storage)}`,
-        );
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.detail || 'API not found');
-
-        document.getElementById('manage-request-payload').value = prettyJson(data.request_payload || {});
-        document.getElementById('manage-request-header').value = prettyJson(data.request_header || {});
-        document.getElementById('manage-response-payload').value = prettyJson(data.response_payload || {});
-        document.getElementById('manage-response-header').value = prettyJson(data.response_header || {});
-        document.getElementById('manage-delay').value = data.delay ?? 0;
-        document.getElementById('manage-method').value = data.method || method;
-        status.textContent = `Loaded API ${method} ${api}`;
-      } catch (error) {
-        status.textContent = error.message;
-      }
-    }
-
-    async function updateApi() {
-      const status = document.getElementById('manage-status');
-      status.textContent = '';
-      try {
-        const api = document.getElementById('manage-api').value.trim();
-        const method = document.getElementById('manage-method').value.trim().toUpperCase();
-        const storage = document.getElementById('manage-storage').value;
-        if (!api) throw new Error('API path is required');
-
-        const updatePayload = {
-          method,
-          request_payload: parseJson(document.getElementById('manage-request-payload').value),
-          request_header: parseJson(document.getElementById('manage-request-header').value),
-          response_payload: parseJson(document.getElementById('manage-response-payload').value),
-          response_header: parseJson(document.getElementById('manage-response-header').value),
-          delay: Number(document.getElementById('manage-delay').value || 0),
-        };
-
-        const response = await fetch(
-          `/virtual_apis?api=${encodeURIComponent(api)}&method=${encodeURIComponent(method)}&storage=${encodeURIComponent(storage)}`,
-          {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(updatePayload),
-          },
-        );
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.detail || 'Unable to update API');
-        status.textContent = data.message;
-        await refreshSavedApiLists();
-      } catch (error) {
-        status.textContent = error.message;
-      }
-    }
-
-    async function testApi() {
-      const statusEl = document.getElementById('test-status');
-      const headersEl = document.getElementById('test-headers');
-      const responseEl = document.getElementById('test-response');
-      statusEl.textContent = '';
-      headersEl.textContent = '';
-      responseEl.textContent = '';
-
-      try {
-        const api = document.getElementById('test-api').value.trim();
-        const method = document.getElementById('test-method').value.trim().toUpperCase();
-        const storage = document.getElementById('test-storage').value;
-        if (!api) throw new Error('API path is required for testing');
-
-        const request_payload = parseJson(document.getElementById('test-request-payload').value);
-        const response = await fetch('/test_virtual_api', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ api, method, storage, request_payload }),
-        });
-
-        const responseBody = await response.json();
-        if (!response.ok) {
-          throw new Error(responseBody.detail || 'Unable to test API');
-        }
-
-        statusEl.textContent = `${response.status} ${response.statusText}`;
-        headersEl.textContent = prettyJson(Object.fromEntries(response.headers.entries()));
-        responseEl.textContent = prettyJson(responseBody);
-      } catch (error) {
-        statusEl.textContent = error.message;
-      }
-    }
-
-    document.querySelectorAll('.menu-item').forEach((button) => {
-      button.addEventListener('click', () => activateSection(button.dataset.target));
+    const request_payload = parseJson(document.getElementById('t-req-payload').value);
+    const r = await fetch('/test_virtual_api', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ api, method, storage, request_payload }),
     });
+    const body = await r.json();
+    const ok = r.ok;
 
-    document.getElementById('add-form').addEventListener('submit', addVirtualApi);
-    document.getElementById('load-api').addEventListener('click', loadApi);
-    document.getElementById('update-api').addEventListener('click', updateApi);
-    document.getElementById('test-api-button').addEventListener('click', testApi);
-    document.getElementById('manage-api-select').addEventListener('change', () => applySavedApiSelection('manage-api-select', 'manage-api', 'manage-method'));
-    document.getElementById('test-api-select').addEventListener('change', () => applySavedApiSelection('test-api-select', 'test-api', 'test-method'));
-    document.getElementById('refresh-manage-list').addEventListener('click', refreshSavedApiLists);
-    document.getElementById('refresh-test-list').addEventListener('click', refreshSavedApiLists);
-    document.getElementById('manage-storage').addEventListener('change', refreshSavedApiLists);
-    document.getElementById('test-storage').addEventListener('change', refreshSavedApiLists);
+    badge.innerHTML = `<span class="res-status ${ok?'res-ok':'res-err'}">${r.status} ${r.statusText}</span>`;
+    hdrs.innerHTML  = syntaxHL(Object.fromEntries(r.headers.entries()));
+    if (!ok) throw new Error(body.detail || 'Request failed');
+    res.innerHTML = syntaxHL(body);
+  } catch(err) {
+    res.textContent = err.message;
+    toast('err', 'Test Failed', err.message);
+  } finally {
+    setLoading(btn, false);
+  }
+});
 
-    window.addEventListener('DOMContentLoaded', refreshSavedApiLists);
-  </script>
+/* ================================================================
+   API Registry
+================================================================ */
+async function loadRegistry() {
+  const storage = document.getElementById('reg-storage').value;
+  const body    = document.getElementById('reg-body');
+  body.innerHTML = '<div class="tbl-empty"><p>Loading…</p></div>';
+  try {
+    const apis = await fetchList(storage);
+    if (!apis.length) {
+      body.innerHTML = `<div class="tbl-empty">
+        <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        <p>No APIs registered yet.<br>Use <strong>Add Virtual API</strong> to get started.</p>
+      </div>`;
+      return;
+    }
+    const rows = apis.map(item => {
+      const mc = (item.mappings || []).length;
+      const mcBadge = mc
+        ? `<span class="cnt-badge">${mc} mapping${mc>1?'s':''}</span>`
+        : `<span style="color:var(--gray-400);font-size:.76rem">—</span>`;
+      return `<tr>
+        <td>${methodBadge(item.method)}</td>
+        <td><code style="font-size:.8rem;font-family:monospace">${esc(item.api)}</code></td>
+        <td>${storageBadge(item.storage)}</td>
+        <td style="font-variant-numeric:tabular-nums">${item.delay ?? 0}s</td>
+        <td>${mcBadge}</td>
+        <td>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-secondary btn-sm"
+              onclick="goManage('${escAttr(item.api)}','${item.method}','${item.storage}')">Edit</button>
+            <button class="btn btn-ghost btn-sm"
+              onclick="goTest('${escAttr(item.api)}','${item.method}','${item.storage}')">Test</button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+
+    body.innerHTML = `<div class="tbl-wrap"><table>
+      <thead><tr>
+        <th>Method</th><th>Path</th><th>Storage</th><th>Delay</th><th>Mappings</th><th>Actions</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+  } catch(e) {
+    body.innerHTML = `<div class="tbl-empty"><p style="color:var(--red-600)">${esc(e.message)}</p></div>`;
+  }
+}
+
+function goManage(api, method, storage) {
+  document.querySelector('[data-panel="panel-manage"]').click();
+  document.getElementById('m-api').value    = api;
+  document.getElementById('m-method').value = method;
+  document.getElementById('m-storage').value = storage === 'database' ? 'db' : 'local';
+  document.getElementById('btn-load').click();
+}
+
+function goTest(api, method, storage) {
+  document.querySelector('[data-panel="panel-test"]').click();
+  document.getElementById('t-api').value    = api;
+  document.getElementById('t-method').value = method;
+  document.getElementById('t-storage').value = storage === 'database' ? 'db' : 'local';
+}
+
+/* ================================================================
+   Event wiring
+================================================================ */
+document.getElementById('btn-refresh-manage').addEventListener('click', refreshLists);
+document.getElementById('btn-refresh-test').addEventListener('click', refreshLists);
+document.getElementById('btn-refresh-registry').addEventListener('click', loadRegistry);
+
+document.getElementById('m-select').addEventListener('change', () => applySelect('m-select','m-api','m-method'));
+document.getElementById('t-select').addEventListener('change', () => applySelect('t-select','t-api','t-method'));
+
+document.getElementById('m-storage').addEventListener('change', refreshLists);
+document.getElementById('t-storage').addEventListener('change', refreshLists);
+document.getElementById('reg-storage').addEventListener('change', loadRegistry);
+
+/* Init */
+window.addEventListener('DOMContentLoaded', refreshLists);
+</script>
 </body>
 </html>

@@ -1,4 +1,5 @@
 import asyncio
+import copy
 import json
 import os
 from pathlib import Path
@@ -40,6 +41,58 @@ def normalize_storage(storage: Optional[str]) -> str:
         return STORAGE_LOCAL
     return STORAGE_AUTO
 
+
+# ---------------------------------------------------------------------------
+# Field-mapping helpers
+# ---------------------------------------------------------------------------
+
+def _get_by_path(data: Dict[str, Any], path: str) -> Any:
+    """Read a value from a nested dict using dot-notation (e.g. 'user.profile.id')."""
+    current = data
+    for key in path.split("."):
+        if isinstance(current, dict) and key in current:
+            current = current[key]
+        else:
+            return None
+    return current
+
+
+def _set_by_path(data: Dict[str, Any], path: str, value: Any) -> None:
+    """Write a value into a nested dict using dot-notation, creating intermediate dicts."""
+    keys = path.split(".")
+    current = data
+    for key in keys[:-1]:
+        if key not in current or not isinstance(current[key], dict):
+            current[key] = {}
+        current = current[key]
+    current[keys[-1]] = value
+
+
+def apply_mappings(
+    response_payload: Dict[str, Any],
+    request_payload: Dict[str, Any],
+    mappings: List[Dict[str, str]],
+) -> Dict[str, Any]:
+    """
+    Deep-copy response_payload and, for each mapping entry, read the value at
+    mapping['from_key'] in request_payload and write it to mapping['to_key']
+    in the copy.  Entries with blank keys or a missing source value are skipped.
+    """
+    result = copy.deepcopy(response_payload)
+    for mapping in mappings:
+        from_key = (mapping.get("from_key") or "").strip()
+        to_key = (mapping.get("to_key") or "").strip()
+        if not from_key or not to_key:
+            continue
+        value = _get_by_path(request_payload, from_key)
+        if value is not None:
+            _set_by_path(result, to_key, value)
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Local JSON storage helpers
+# ---------------------------------------------------------------------------
 
 async def load_local_documents() -> List[Dict[str, Any]]:
     if not LOCAL_VIRTUAL_APIS_PATH.exists():
@@ -93,6 +146,10 @@ async def update_local_document(api: str, method: str, update_data: Dict[str, An
 async def list_local_documents() -> List[Dict[str, Any]]:
     return await load_local_documents()
 
+
+# ---------------------------------------------------------------------------
+# Storage-agnostic helpers
+# ---------------------------------------------------------------------------
 
 async def get_document(api: str, method: str, storage: Optional[str] = None) -> Optional[Dict[str, Any]]:
     storage_key = normalize_storage(storage)
@@ -156,6 +213,15 @@ async def ensure_database_collection() -> None:
         await collection.create_index([("api", 1), ("method", 1)], unique=True)
 
 
+# ---------------------------------------------------------------------------
+# Pydantic models
+# ---------------------------------------------------------------------------
+
+class FieldMapping(BaseModel):
+    from_key: str = Field(..., description="Dot-notation path in the incoming request payload")
+    to_key: str = Field(..., description="Dot-notation path in the response payload to write into")
+
+
 class VirtualAPI(BaseModel):
     api: str
     method: str = Field(..., pattern='^(GET|POST|PUT|DELETE|PATCH|OPTIONS|HEAD)$', description='HTTP method')
@@ -164,6 +230,7 @@ class VirtualAPI(BaseModel):
     response_payload: Dict[str, Any]
     response_header: Dict[str, Any]
     delay: int = Field(..., ge=0)
+    mappings: List[FieldMapping] = Field(default_factory=list)
 
 
 class VirtualAPIUpdate(BaseModel):
@@ -173,7 +240,12 @@ class VirtualAPIUpdate(BaseModel):
     response_payload: Optional[Dict[str, Any]] = None
     response_header: Optional[Dict[str, Any]] = None
     delay: Optional[int] = Field(None, ge=0)
+    mappings: Optional[List[FieldMapping]] = None
 
+
+# ---------------------------------------------------------------------------
+# FastAPI lifecycle
+# ---------------------------------------------------------------------------
 
 @app.on_event("startup")
 async def startup_db_client():
@@ -191,6 +263,10 @@ async def shutdown_db_client():
         client.close()
 
 
+# ---------------------------------------------------------------------------
+# UI routes
+# ---------------------------------------------------------------------------
+
 @app.get("/", response_class=HTMLResponse)
 async def root_ui():
     return await get_ui_html()
@@ -206,6 +282,10 @@ async def get_ui_html() -> HTMLResponse:
         raise HTTPException(status_code=500, detail="UI file not found")
     return HTMLResponse(UI_HTML_PATH.read_text(encoding="utf-8"))
 
+
+# ---------------------------------------------------------------------------
+# Management API routes
+# ---------------------------------------------------------------------------
 
 @app.post("/add_virtual_apis", status_code=201)
 async def add_virtual_apis(payload: VirtualAPI, storage: Optional[str] = STORAGE_AUTO):
@@ -255,6 +335,10 @@ async def list_virtual_apis(storage: Optional[str] = STORAGE_AUTO):
     return await list_documents(storage)
 
 
+# ---------------------------------------------------------------------------
+# Test route  (uses stored mappings against the provided request payload)
+# ---------------------------------------------------------------------------
+
 class VirtualAPITestRequest(BaseModel):
     api: str
     method: str = Field(..., pattern='^(GET|POST|PUT|DELETE|PATCH|OPTIONS|HEAD)$', description='HTTP method')
@@ -275,8 +359,17 @@ async def test_virtual_api(payload: VirtualAPITestRequest):
     if delay and delay > 0:
         await asyncio.sleep(delay)
 
-    return JSONResponse(content=document["response_payload"], headers=document["response_header"])
+    response_payload = document["response_payload"]
+    mappings = document.get("mappings") or []
+    if mappings and payload.request_payload:
+        response_payload = apply_mappings(response_payload, payload.request_payload, mappings)
 
+    return JSONResponse(content=response_payload, headers=document["response_header"])
+
+
+# ---------------------------------------------------------------------------
+# Dynamic catch-all route  (serves registered mocks as real HTTP endpoints)
+# ---------------------------------------------------------------------------
 
 @app.api_route(
     "/{full_path:path}",
@@ -292,11 +385,25 @@ async def handle_dynamic_api(full_path: str, request: Request):
             detail=f"API '{api_path}' not configured for method '{method}'",
         )
 
+    # Parse request body so mappings can extract values from it.
+    request_payload: Dict[str, Any] = {}
+    try:
+        body = await request.body()
+        if body:
+            request_payload = json.loads(body)
+    except Exception:
+        pass
+
     delay = document.get("delay", 0)
     if delay and delay > 0:
         await asyncio.sleep(delay)
 
-    return JSONResponse(content=document["response_payload"], headers=document["response_header"])
+    response_payload = document["response_payload"]
+    mappings = document.get("mappings") or []
+    if mappings and request_payload:
+        response_payload = apply_mappings(response_payload, request_payload, mappings)
+
+    return JSONResponse(content=response_payload, headers=document["response_header"])
 
 
 if __name__ == "__main__":
