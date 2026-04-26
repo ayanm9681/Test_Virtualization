@@ -1,0 +1,29 @@
+# Git
+.git/
+.gitignore
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Local runtime data (not baked into the image)
+.env
+virtual_apis.json
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Docs / meta (not needed in image)
+README.md
+.env.example
+Dockerfile
+.dockerignore
