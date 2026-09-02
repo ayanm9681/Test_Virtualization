@@ -37,6 +37,7 @@ Thumbs.db
 
 # Local storage data
 virtual_apis.json
+incidents.json
 
 # Logs
 *.log

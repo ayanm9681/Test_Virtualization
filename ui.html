@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Virtual API Builder</title>
+  <title>ChaosForge</title>
   <style>
     /* ============================================================
        Design tokens
@@ -722,6 +722,11 @@
     @keyframes toastOut { from { opacity:1; transform: translateX(0);    } to { opacity:0; transform: translateX(14px); } }
 
     /* ============================================================
+       Fault injection
+    ============================================================ */
+    .fault-fields { display: none; }
+
+    /* ============================================================
        Separator
     ============================================================ */
     .sep { height: 1px; background: var(--border); margin: 14px 0; }
@@ -760,9 +765,9 @@
       <div class="brand-icon">
         <svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
       </div>
-      <span class="brand-name">Virtual API Builder</span>
+      <span class="brand-name">ChaosForge</span>
     </div>
-    <p class="brand-sub">Mock, manage &amp; test endpoints</p>
+    <p class="brand-sub">Mock, manage, test &amp; inject faults</p>
   </div>
 
   <nav class="sidebar-nav">
@@ -787,10 +792,15 @@
       <span class="ni"><svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></span>
       API Registry
     </button>
+
+    <button class="nav-item" data-panel="panel-fault">
+      <span class="ni"><svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></span>
+      Fault Injection
+    </button>
   </nav>
 
   <div class="sidebar-footer">
-    <p>Virtual API Builder &mdash; Lite showcase</p>
+    <p>ChaosForge &mdash; Lite showcase</p>
   </div>
 </aside>
 
@@ -1226,6 +1236,232 @@
 
     </div><!-- /panel-registry -->
 
+
+    <!-- ==============================================================
+         PANEL — Fault Injection
+    ============================================================== -->
+    <div class="panel" id="panel-fault">
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-head-left">
+            <div class="ci ci-amber"><svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
+            <div>
+              <div class="card-title">Scenario</div>
+              <div class="card-sub">Pick a fault type and the registered endpoint(s) it targets</div>
+            </div>
+          </div>
+          <button class="btn btn-secondary btn-sm" id="btn-refresh-fault">
+            <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            Refresh List
+          </button>
+        </div>
+        <div class="card-body">
+
+          <div class="fg">
+            <label class="lbl">Scenario Type</label>
+            <select id="f-type">
+              <option value="latency_creep">Latency Creep — ramps delay up over time</option>
+              <option value="flaky">Flaky — random failures at a fixed rate</option>
+              <option value="load_correlated">Load-Correlated — degrades above a concurrency threshold</option>
+              <option value="cascading_dependency">Cascading Dependency — a root failure drags down dependents</option>
+              <option value="transient_blip">Transient Blip — self-resolving failure window</option>
+              <option value="rate_limit">Rate Limit — 429s once a request quota is exceeded</option>
+            </select>
+            <p class="hint" id="f-type-hint"></p>
+          </div>
+
+          <!-- Single-endpoint target: latency_creep / flaky / load_correlated / transient_blip / rate_limit -->
+          <div class="fg" id="f-endpoint-wrap">
+            <label class="lbl">Target Endpoint</label>
+            <select id="f-endpoint"><option value="">-- Select a registered API --</option></select>
+          </div>
+
+          <!-- latency_creep params -->
+          <div id="f-fields-latency_creep" class="fault-fields">
+            <div class="field-row cols-3">
+              <div class="fg">
+                <label class="lbl">Start Delay (s)</label>
+                <input type="number" id="f-lc-start" min="0" step="0.05" value="0.1" />
+              </div>
+              <div class="fg">
+                <label class="lbl">Max Delay (s)</label>
+                <input type="number" id="f-lc-max" min="0" step="0.05" value="2" />
+              </div>
+              <div class="fg">
+                <label class="lbl">Ramp Duration (s)</label>
+                <input type="number" id="f-lc-ramp" min="0" step="1" value="60" />
+              </div>
+            </div>
+          </div>
+
+          <!-- flaky params -->
+          <div id="f-fields-flaky" class="fault-fields">
+            <div class="field-row cols-2">
+              <div class="fg">
+                <label class="lbl">Failure Rate (0–1)</label>
+                <input type="number" id="f-fl-rate" min="0" max="1" step="0.05" value="0.3" />
+              </div>
+              <div class="fg">
+                <label class="lbl">Error Status</label>
+                <input type="number" id="f-fl-status" min="100" max="599" value="500" />
+              </div>
+            </div>
+            <div class="fg">
+              <label class="lbl">Error Body (JSON)</label>
+              <textarea class="jed sm" id="f-fl-error-body">{"error": "simulated failure"}</textarea>
+            </div>
+          </div>
+
+          <!-- load_correlated params -->
+          <div id="f-fields-load_correlated" class="fault-fields">
+            <div class="field-row cols-3">
+              <div class="fg">
+                <label class="lbl">Concurrency Threshold</label>
+                <input type="number" id="f-load-threshold" min="0" step="1" value="5" />
+                <p class="hint">In-flight request count above which this endpoint degrades.</p>
+              </div>
+              <div class="fg">
+                <label class="lbl">Degraded Delay (s)</label>
+                <input type="number" id="f-load-delay" min="0" step="0.1" value="1.5" />
+              </div>
+              <div class="fg">
+                <label class="lbl">Degraded Failure Rate (0–1)</label>
+                <input type="number" id="f-load-rate" min="0" max="1" step="0.05" value="0.5" />
+              </div>
+            </div>
+            <div class="field-row cols-2">
+              <div class="fg">
+                <label class="lbl">Error Status</label>
+                <input type="number" id="f-load-status" min="100" max="599" value="503" />
+              </div>
+            </div>
+            <div class="fg">
+              <label class="lbl">Error Body (JSON)</label>
+              <textarea class="jed sm" id="f-load-error-body">{"error": "service degraded under load"}</textarea>
+            </div>
+          </div>
+
+          <!-- cascading_dependency params -->
+          <div id="f-fields-cascading_dependency" class="fault-fields">
+            <div class="field-row cols-2">
+              <div class="fg">
+                <label class="lbl">Root Endpoint</label>
+                <select id="f-casc-root"><option value="">-- Select a registered API --</option></select>
+              </div>
+              <div class="fg">
+                <label class="lbl">Dependent Endpoints</label>
+                <select id="f-casc-dependents" multiple size="4"></select>
+                <p class="hint">Ctrl/Cmd-click to select multiple.</p>
+              </div>
+            </div>
+            <div class="field-row cols-2">
+              <div class="fg">
+                <label class="lbl">Trigger</label>
+                <select id="f-casc-trigger-type">
+                  <option value="seconds">After N seconds elapsed</option>
+                  <option value="requests">After N requests to root</option>
+                </select>
+              </div>
+              <div class="fg">
+                <label class="lbl">Trigger Value</label>
+                <input type="number" id="f-casc-trigger-value" min="0" step="1" value="30" />
+              </div>
+            </div>
+            <details>
+              <summary style="cursor:pointer;font-size:.78rem;color:var(--gray-600);font-weight:700;margin:6px 0">Advanced: custom error bodies (optional)</summary>
+              <div class="field-row cols-2" style="margin-top:10px">
+                <div class="fg">
+                  <label class="lbl">Root Error Status</label>
+                  <input type="number" id="f-casc-root-status" min="100" max="599" placeholder="500 (default)" />
+                </div>
+                <div class="fg">
+                  <label class="lbl">Dependent Error Status</label>
+                  <input type="number" id="f-casc-dep-status" min="100" max="599" placeholder="502 (default)" />
+                </div>
+              </div>
+              <div class="field-row cols-2">
+                <div class="fg">
+                  <label class="lbl">Root Error Body (JSON)</label>
+                  <textarea class="jed sm" id="f-casc-root-body" placeholder="leave blank for default"></textarea>
+                </div>
+                <div class="fg">
+                  <label class="lbl">Dependent Error Body (JSON)</label>
+                  <textarea class="jed sm" id="f-casc-dep-body" placeholder="leave blank for default"></textarea>
+                </div>
+              </div>
+            </details>
+          </div>
+
+          <!-- transient_blip params -->
+          <div id="f-fields-transient_blip" class="fault-fields">
+            <div class="field-row cols-3">
+              <div class="fg">
+                <label class="lbl">Start Offset (s)</label>
+                <input type="number" id="f-tb-start" min="0" step="1" value="15" />
+                <p class="hint">Delay after activation before the failure window begins.</p>
+              </div>
+              <div class="fg">
+                <label class="lbl">Duration (s)</label>
+                <input type="number" id="f-tb-duration" min="0" step="1" value="20" />
+              </div>
+              <div class="fg">
+                <label class="lbl">Error Status</label>
+                <input type="number" id="f-tb-status" min="100" max="599" value="500" />
+              </div>
+            </div>
+            <div class="fg">
+              <label class="lbl">Error Body (JSON)</label>
+              <textarea class="jed sm" id="f-tb-error-body">{"error": "transient blip"}</textarea>
+            </div>
+          </div>
+
+          <!-- rate_limit params -->
+          <div id="f-fields-rate_limit" class="fault-fields">
+            <div class="field-row cols-2">
+              <div class="fg">
+                <label class="lbl">Limit per Window</label>
+                <input type="number" id="f-rl-limit" min="0" step="1" value="10" />
+              </div>
+              <div class="fg">
+                <label class="lbl">Window (s)</label>
+                <input type="number" id="f-rl-window" min="0" step="1" value="10" />
+              </div>
+            </div>
+            <p class="hint">Requests beyond the limit within the rolling window get <code style="font-family:monospace">429</code> — this is meant to look like normal rate limiting, not a defect.</p>
+          </div>
+
+          <div class="btn-row">
+            <button type="button" class="btn btn-primary btn-lg" id="btn-activate-fault">
+              <span class="spin"></span>
+              <svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+              <span class="bl">Activate Scenario</span>
+            </button>
+            <button type="button" class="btn btn-danger" id="btn-reset-fault">Reset Scenario</button>
+          </div>
+          <div class="ist" id="ist-fault"></div>
+        </div>
+      </div>
+
+      <!-- Live status -->
+      <div class="card" style="margin-top:14px">
+        <div class="card-head">
+          <div class="card-head-left">
+            <div class="ci ci-purple"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+            <div>
+              <div class="card-title">Active Scenario</div>
+              <div class="card-sub">Live state from the fault engine — auto-refreshes while this tab is open</div>
+            </div>
+          </div>
+          <span id="f-status-badge"></span>
+        </div>
+        <div class="card-body">
+          <div class="jout" id="f-status-json" style="min-height:80px">—</div>
+        </div>
+      </div>
+
+    </div><!-- /panel-fault -->
+
   </div><!-- /content -->
 </div><!-- /workspace -->
 
@@ -1312,6 +1548,7 @@ const META = {
   'panel-manage':   { title:'Manage API',         desc:'Load, edit and save changes to a registered virtual endpoint' },
   'panel-test':     { title:'Test API',           desc:'Send test requests to a mock endpoint and inspect the response' },
   'panel-registry': { title:'API Registry',       desc:'Browse all registered virtual endpoints across storage backends' },
+  'panel-fault':    { title:'Fault Injection',    desc:'Inject latency, failures, load-correlated degradation, or cascading outages into a registered mock' },
 };
 
 document.querySelectorAll('.nav-item').forEach(btn => {
@@ -1325,6 +1562,12 @@ document.querySelectorAll('.nav-item').forEach(btn => {
     document.getElementById('tb-title').textContent = m.title;
     document.getElementById('tb-desc').textContent  = m.desc;
     if (id === 'panel-registry') loadRegistry();
+    if (id === 'panel-fault') {
+      refreshFaultEndpoints();
+      startFaultStatusPolling();
+    } else {
+      stopFaultStatusPolling();
+    }
   });
 });
 
@@ -1639,6 +1882,238 @@ function goTest(api, method, storage) {
   document.getElementById('t-method').value = method;
   document.getElementById('t-storage').value = storage === 'database' ? 'db' : 'local';
 }
+
+/* ================================================================
+   Fault Injection panel
+================================================================ */
+const FAULT_TYPE_META = {
+  latency_creep: {
+    hint: "Ramps this endpoint's added delay from Start Delay to Max Delay over the ramp window, then holds at Max Delay.",
+    needsEndpoint: true,
+  },
+  flaky: {
+    hint: 'Randomly fails a fraction of requests to this endpoint at the given failure rate.',
+    needsEndpoint: true,
+  },
+  load_correlated: {
+    hint: "Degrades this endpoint only once its concurrent in-flight request count exceeds the threshold; recovers automatically once load drops back down.",
+    needsEndpoint: true,
+  },
+  cascading_dependency: {
+    hint: 'Once the trigger condition is met, the root endpoint starts failing and every dependent endpoint starts returning a distinct "upstream unavailable" error.',
+    needsEndpoint: false,
+  },
+  transient_blip: {
+    hint: 'Fails only within a time window after activation, then self-resolves automatically without needing a reset — useful for testing that a monitor correctly calls this a false alarm.',
+    needsEndpoint: true,
+  },
+  rate_limit: {
+    hint: 'Returns 429 once the request count in the rolling window exceeds the limit. This is intentionally "working as intended," not a defect.',
+    needsEndpoint: true,
+  },
+};
+
+function updateFaultTypeUI() {
+  const type = document.getElementById('f-type').value;
+  const meta = FAULT_TYPE_META[type];
+  document.getElementById('f-type-hint').textContent = meta.hint;
+  document.querySelectorAll('.fault-fields').forEach(el => el.style.display = 'none');
+  document.getElementById(`f-fields-${type}`).style.display = 'block';
+  document.getElementById('f-endpoint-wrap').style.display = meta.needsEndpoint ? 'block' : 'none';
+}
+document.getElementById('f-type').addEventListener('change', updateFaultTypeUI);
+updateFaultTypeUI();
+
+function fillPathSelect(id, paths, multiple = false) {
+  const sel = document.getElementById(id);
+  const prevSingle = multiple ? null : sel.value;
+  const prevMulti  = multiple ? Array.from(sel.selectedOptions).map(o => o.value) : null;
+  sel.innerHTML = multiple ? '' : '<option value="">-- Select a registered API --</option>';
+  paths.forEach(p => {
+    const o = document.createElement('option');
+    o.value = p;
+    o.textContent = p;
+    sel.appendChild(o);
+  });
+  if (multiple) {
+    Array.from(sel.options).forEach(o => { if (prevMulti.includes(o.value)) o.selected = true; });
+  } else if (prevSingle) {
+    sel.value = prevSingle;
+  }
+}
+
+async function refreshFaultEndpoints() {
+  try {
+    const apis = await fetchList('auto');
+    const paths = [...new Set(apis.map(a => a.api))].sort();
+    fillPathSelect('f-endpoint', paths);
+    fillPathSelect('f-casc-root', paths);
+    fillPathSelect('f-casc-dependents', paths, true);
+  } catch (e) { console.warn(e); }
+}
+
+function buildFaultParams(type) {
+  const val = id => document.getElementById(id).value;
+  switch (type) {
+    case 'latency_creep': {
+      const endpoint = val('f-endpoint');
+      if (!endpoint) throw new Error('Select a target endpoint');
+      return {
+        endpoint,
+        start_delay: Number(val('f-lc-start') || 0),
+        max_delay: Number(val('f-lc-max') || 0),
+        ramp_duration_seconds: Number(val('f-lc-ramp') || 0),
+      };
+    }
+    case 'flaky': {
+      const endpoint = val('f-endpoint');
+      if (!endpoint) throw new Error('Select a target endpoint');
+      return {
+        endpoint,
+        failure_rate: Number(val('f-fl-rate') || 0),
+        error_status: Number(val('f-fl-status') || 500),
+        error_body: parseJson(val('f-fl-error-body')),
+      };
+    }
+    case 'load_correlated': {
+      const endpoint = val('f-endpoint');
+      if (!endpoint) throw new Error('Select a target endpoint');
+      return {
+        endpoint,
+        concurrency_threshold: Number(val('f-load-threshold') || 0),
+        degraded_delay: Number(val('f-load-delay') || 0),
+        degraded_failure_rate: Number(val('f-load-rate') || 0),
+        error_status: Number(val('f-load-status') || 503),
+        error_body: parseJson(val('f-load-error-body')),
+      };
+    }
+    case 'cascading_dependency': {
+      const root = val('f-casc-root');
+      if (!root) throw new Error('Select a root endpoint');
+      const dependents = Array.from(document.getElementById('f-casc-dependents').selectedOptions).map(o => o.value);
+      if (!dependents.length) throw new Error('Select at least one dependent endpoint');
+
+      const triggerType  = val('f-casc-trigger-type');
+      const triggerValue = Number(val('f-casc-trigger-value') || 0);
+      const params = { root_endpoint: root, dependent_endpoints: dependents };
+      if (triggerType === 'seconds') params.trigger_after_seconds = triggerValue;
+      else params.trigger_after_requests = triggerValue;
+
+      const rStatus = val('f-casc-root-status').trim();
+      if (rStatus) params.root_error_status = Number(rStatus);
+      const rBody = val('f-casc-root-body').trim();
+      if (rBody) params.root_error_body = parseJson(rBody);
+      const dStatus = val('f-casc-dep-status').trim();
+      if (dStatus) params.dependent_error_status = Number(dStatus);
+      const dBody = val('f-casc-dep-body').trim();
+      if (dBody) params.dependent_error_body = parseJson(dBody);
+      return params;
+    }
+    case 'transient_blip': {
+      const endpoint = val('f-endpoint');
+      if (!endpoint) throw new Error('Select a target endpoint');
+      return {
+        endpoint,
+        start_offset_seconds: Number(val('f-tb-start') || 0),
+        duration_seconds: Number(val('f-tb-duration') || 0),
+        error_status: Number(val('f-tb-status') || 500),
+        error_body: parseJson(val('f-tb-error-body')),
+      };
+    }
+    case 'rate_limit': {
+      const endpoint = val('f-endpoint');
+      if (!endpoint) throw new Error('Select a target endpoint');
+      return {
+        endpoint,
+        limit_per_window: Number(val('f-rl-limit') || 0),
+        window_seconds: Number(val('f-rl-window') || 0),
+      };
+    }
+    default:
+      throw new Error('Unknown scenario type');
+  }
+}
+
+let faultStatusTimer = null;
+
+async function refreshFaultStatus() {
+  try {
+    const r = await fetch('/mock/scenario');
+    const data = await r.json();
+    const badge = document.getElementById('f-status-badge');
+    const box   = document.getElementById('f-status-json');
+    if (data.active_scenario) {
+      badge.innerHTML = `<span class="res-status res-err">ACTIVE</span>`;
+      const elapsed = data.elapsed_seconds != null ? `${data.elapsed_seconds.toFixed(1)}s` : '—';
+      box.innerHTML = syntaxHL({
+        ...data.active_scenario,
+        elapsed_seconds: elapsed,
+        in_flight: data.in_flight,
+        endpoint_health: data.endpoint_health,
+        request_log_counts: data.request_log_counts,
+      });
+    } else {
+      badge.innerHTML = `<span class="res-status res-ok">INACTIVE</span>`;
+      box.textContent = 'No scenario active — endpoints are behaving normally.';
+    }
+  } catch (e) { console.warn(e); }
+}
+
+function startFaultStatusPolling() {
+  refreshFaultStatus();
+  stopFaultStatusPolling();
+  faultStatusTimer = setInterval(refreshFaultStatus, 2000);
+}
+
+function stopFaultStatusPolling() {
+  if (faultStatusTimer) { clearInterval(faultStatusTimer); faultStatusTimer = null; }
+}
+
+document.getElementById('btn-activate-fault').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-activate-fault');
+  setLoading(btn, true);
+  clearIST('ist-fault');
+  try {
+    const type = document.getElementById('f-type').value;
+    const params = buildFaultParams(type);
+    const r = await fetch('/mock/scenario', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type, params }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Failed to activate scenario');
+    toast('ok', 'Scenario Activated', type);
+    showIST('ist-fault', 'ok', `Activated: ${type}`);
+    await refreshFaultStatus();
+  } catch (err) {
+    toast('err', 'Activation Failed', err.message);
+    showIST('ist-fault', 'err', err.message);
+  } finally {
+    setLoading(btn, false);
+  }
+});
+
+document.getElementById('btn-reset-fault').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-reset-fault');
+  setLoading(btn, true);
+  clearIST('ist-fault');
+  try {
+    const r = await fetch('/mock/scenario/reset', { method: 'POST' });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Failed to reset scenario');
+    toast('info', 'Scenario Reset', 'Endpoints back to baseline');
+    showIST('ist-fault', 'info', 'Scenario reset — endpoints back to baseline');
+    await refreshFaultStatus();
+  } catch (err) {
+    toast('err', 'Reset Failed', err.message);
+    showIST('ist-fault', 'err', err.message);
+  } finally {
+    setLoading(btn, false);
+  }
+});
+
+document.getElementById('btn-refresh-fault').addEventListener('click', refreshFaultEndpoints);
 
 /* ================================================================
    Event wiring

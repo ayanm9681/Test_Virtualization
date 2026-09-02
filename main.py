@@ -1,6 +1,7 @@
 import asyncio
 import copy
 import json
+import logging
 import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -8,19 +9,26 @@ from typing import Any, Dict, List, Optional
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
-from motor.motor_asyncio import AsyncIOMotorClient
+# Mongo connection temporarily disabled -- running local JSON storage only.
+# from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field
 from pymongo.errors import DuplicateKeyError
 
+from fault_engine import fault_engine
+from incident_store import IncidentCreateRequest, create_incident, get_incident
+
 load_dotenv()
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+logger = logging.getLogger("virtual_apis")
 
 MONGO_CONNECTION = os.getenv("MONGO_CONNECTION", "").strip(" '")
 DB_NAME = os.getenv("DB_NAME", "TestRunner").strip(" '")
 VIRTUAL_COLLECTION = os.getenv("VIRTUAL_COLLECTION", "virtual_backends").strip(" '")
 LOCAL_VIRTUAL_APIS_FILE = os.getenv("LOCAL_VIRTUAL_APIS_FILE", "virtual_apis.json").strip(" '")
 
-app = FastAPI()
-client: Optional[AsyncIOMotorClient] = None
+app = FastAPI(title="MockForge")
+client = None  # Optional[AsyncIOMotorClient] -- Mongo disabled, see startup_db_client()
 collection = None
 BASE_DIR = Path(__file__).resolve().parent
 UI_HTML_PATH = BASE_DIR / "ui.html"
@@ -214,6 +222,29 @@ async def ensure_database_collection() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Fault-injection helper (shared by /test_virtual_api and the dynamic route)
+# ---------------------------------------------------------------------------
+
+async def apply_fault_and_delay(api_path: str, method: str, base_delay: float) -> Optional[JSONResponse]:
+    """
+    Evaluates the fault engine for this request, sleeps once for the combined
+    baseline + fault delay, and returns a JSONResponse to short-circuit the
+    caller if the fault decision overrides the response. Returns None when the
+    caller should fall through to its normal response logic unchanged.
+    """
+    decision = fault_engine.evaluate(api_path, method)
+
+    total_delay = (base_delay or 0) + decision.extra_delay
+    if total_delay > 0:
+        await asyncio.sleep(total_delay)
+
+    if decision.status_override is not None:
+        return JSONResponse(status_code=decision.status_override, content=decision.body_override)
+
+    return None
+
+
+# ---------------------------------------------------------------------------
 # Pydantic models
 # ---------------------------------------------------------------------------
 
@@ -229,7 +260,7 @@ class VirtualAPI(BaseModel):
     request_header: Dict[str, Any]
     response_payload: Dict[str, Any]
     response_header: Dict[str, Any]
-    delay: int = Field(..., ge=0)
+    delay: float = Field(..., ge=0)
     mappings: List[FieldMapping] = Field(default_factory=list)
 
 
@@ -239,7 +270,7 @@ class VirtualAPIUpdate(BaseModel):
     request_header: Optional[Dict[str, Any]] = None
     response_payload: Optional[Dict[str, Any]] = None
     response_header: Optional[Dict[str, Any]] = None
-    delay: Optional[int] = Field(None, ge=0)
+    delay: Optional[float] = Field(None, ge=0)
     mappings: Optional[List[FieldMapping]] = None
 
 
@@ -250,11 +281,13 @@ class VirtualAPIUpdate(BaseModel):
 @app.on_event("startup")
 async def startup_db_client():
     global client, collection
-    if MONGO_CONNECTION:
-        client = AsyncIOMotorClient(MONGO_CONNECTION)
-        db = client[DB_NAME]
-        collection = db[VIRTUAL_COLLECTION]
-        await ensure_database_collection()
+    # Mongo connection temporarily disabled -- running local JSON storage only.
+    # To re-enable, uncomment the import above and this block.
+    # if MONGO_CONNECTION:
+    #     client = AsyncIOMotorClient(MONGO_CONNECTION)
+    #     db = client[DB_NAME]
+    #     collection = db[VIRTUAL_COLLECTION]
+    #     await ensure_database_collection()
 
 
 @app.on_event("shutdown")
@@ -355,16 +388,72 @@ async def test_virtual_api(payload: VirtualAPITestRequest):
     if not document:
         raise HTTPException(status_code=404, detail=f"API '{api}' with method '{method}' not found")
 
-    delay = document.get("delay", 0)
-    if delay and delay > 0:
-        await asyncio.sleep(delay)
+    fault_engine.increment_in_flight(api)
+    try:
+        fault_response = await apply_fault_and_delay(api, method, document.get("delay", 0))
+        if fault_response is not None:
+            return fault_response
 
-    response_payload = document["response_payload"]
-    mappings = document.get("mappings") or []
-    if mappings and payload.request_payload:
-        response_payload = apply_mappings(response_payload, payload.request_payload, mappings)
+        response_payload = document["response_payload"]
+        mappings = document.get("mappings") or []
+        if mappings and payload.request_payload:
+            response_payload = apply_mappings(response_payload, payload.request_payload, mappings)
 
-    return JSONResponse(content=response_payload, headers=document["response_header"])
+        return JSONResponse(content=response_payload, headers=document["response_header"])
+    finally:
+        fault_engine.decrement_in_flight(api)
+
+
+# ---------------------------------------------------------------------------
+# Fault-injection control routes (internal use only -- not part of the mock
+# surface exposed to agents under test)
+# ---------------------------------------------------------------------------
+
+class ScenarioActivateRequest(BaseModel):
+    type: str
+    params: Dict[str, Any] = Field(default_factory=dict)
+
+
+@app.post("/mock/scenario")
+async def activate_scenario(payload: ScenarioActivateRequest):
+    fault_engine.activate(payload.type, payload.params)
+    return {"message": "Scenario activated", "type": payload.type, "params": payload.params}
+
+
+@app.get("/mock/scenario")
+async def get_scenario():
+    elapsed = fault_engine.elapsed_seconds() if fault_engine.active_scenario else None
+    return {
+        "active_scenario": fault_engine.active_scenario,
+        "elapsed_seconds": elapsed,
+        **fault_engine.debug_state(),
+    }
+
+
+@app.post("/mock/scenario/reset")
+async def reset_scenario():
+    fault_engine.deactivate()
+    return {"message": "Scenario reset"}
+
+
+# ---------------------------------------------------------------------------
+# Incident management routes -- a standalone record-keeping feature with its
+# own storage (incidents.json, via incident_store.py). Independent of the
+# VirtualAPI storage/CRUD, the fault engine, and each other's state; does not
+# read or write mocks, and mocks never read or write incidents.
+# ---------------------------------------------------------------------------
+
+@app.post("/incidents", status_code=201)
+async def report_incident(payload: IncidentCreateRequest):
+    return await create_incident(payload)
+
+
+@app.get("/incidents/{incident_number}")
+async def lookup_incident(incident_number: str):
+    record = await get_incident(incident_number)
+    if not record:
+        raise HTTPException(status_code=404, detail=f"Incident '{incident_number}' not found")
+    return record
 
 
 # ---------------------------------------------------------------------------
@@ -378,6 +467,7 @@ async def test_virtual_api(payload: VirtualAPITestRequest):
 async def handle_dynamic_api(full_path: str, request: Request):
     api_path = f"/{full_path}" if not full_path.startswith("/") else full_path
     method = request.method.strip().upper()
+    logger.info("Received request: %s %s from %s", method, api_path, request.client)
     document = await get_document(api_path, method)
     if not document:
         raise HTTPException(
@@ -385,25 +475,30 @@ async def handle_dynamic_api(full_path: str, request: Request):
             detail=f"API '{api_path}' not configured for method '{method}'",
         )
 
-    # Parse request body so mappings can extract values from it.
-    request_payload: Dict[str, Any] = {}
+    fault_engine.increment_in_flight(api_path)
     try:
-        body = await request.body()
-        if body:
-            request_payload = json.loads(body)
-    except Exception:
-        pass
+        # Parse request body so mappings can extract values from it.
+        request_payload: Dict[str, Any] = {}
+        try:
+            body = await request.body()
+            if body:
+                request_payload = json.loads(body)
+        except Exception:
+            pass
 
-    delay = document.get("delay", 0)
-    if delay and delay > 0:
-        await asyncio.sleep(delay)
+        fault_response = await apply_fault_and_delay(api_path, method, document.get("delay", 0))
+        if fault_response is not None:
+            return fault_response
 
-    response_payload = document["response_payload"]
-    mappings = document.get("mappings") or []
-    if mappings and request_payload:
-        response_payload = apply_mappings(response_payload, request_payload, mappings)
+        response_payload = document["response_payload"]
+        mappings = document.get("mappings") or []
+        if mappings and request_payload:
+            response_payload = apply_mappings(response_payload, request_payload, mappings)
 
-    return JSONResponse(content=response_payload, headers=document["response_header"])
+        logger.info("Responding to: %s %s", method, api_path)
+        return JSONResponse(content=response_payload, headers=document["response_header"])
+    finally:
+        fault_engine.decrement_in_flight(api_path)
 
 
 if __name__ == "__main__":

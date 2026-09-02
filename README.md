@@ -1,6 +1,6 @@
-# Virtual API Builder
+# MockForge
 
-A lightweight **API virtualisation / mock server** built with FastAPI. It lets you register fake HTTP endpoints with configurable request/response payloads, headers, and artificial delay — then serve them as real HTTP routes or test them from the built-in browser UI.
+A lightweight **API virtualisation / mock server** built with FastAPI. It lets you register fake HTTP endpoints with configurable request/response payloads, headers, and artificial delay — then serve them as real HTTP routes or test them from the built-in browser UI. A fault-injection layer (see [FAULT_ENGINE.md](FAULT_ENGINE.md)) can also override any registered mock's behavior at runtime — latency ramps, flaky failures, cascading outages, load-correlated degradation, transient blips, and rate limiting.
 
 Intended as a **showcase / demo** of the concept. See [Architectural Trade-offs & Production Scaling](#architectural-trade-offs--production-scaling) for known limitations and what a production-grade version would look like.
 
